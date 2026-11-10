@@ -62,7 +62,7 @@ INSERT INTO settings (key, value) VALUES
   ('jam_sore',      '17'),
   ('menit_sore',    '0'),
   ('durasi_pakan',  '3'),
-  ('durasi_pompa',  '10'),
+  ('durasi_pompa',  '5'),
   ('batas_air',     '30'),
   -- Where the pump stops filling. It has to be a separate number from
   -- batas_air: when both were the same, the pump cut out the instant the level
@@ -72,10 +72,16 @@ INSERT INTO settings (key, value) VALUES
   -- Sensor calibration. Kept here rather than in the firmware so re-measuring
   -- the rig costs an edit in the dashboard instead of a re-flash.
   -- air_kering / air_basah are raw ADC counts; the pakan pair is millimetres
-  -- from the sensor face. Measured on this rig: the dry water sensor reads
-  -- 3-9, and the empty hopper sits at about 109 mm. The other two are
-  -- placeholders until the tank and the hopper are filled and read.
+  -- from the sensor face. All four were measured on the rig, not estimated.
+  --
+  -- Both water points are operating limits rather than physical ones: 0% is
+  -- the dry strip (it reads 3-10) and 100% is the highest level that still
+  -- clears the sensor's unprotected header wiring. At that height the strip
+  -- swings between 187 and 235 counts, so 210 is the typical reading rather
+  -- than the peak. Erring low only makes the pump stop early; erring high
+  -- makes it keep filling past the wiring, so the typical value is the safe
+  -- choice.
   ('air_kering',       '10'),
-  ('air_basah',       '250'),
-  ('pakan_penuh_mm',   '60'),
-  ('pakan_kosong_mm', '109');
+  ('air_basah',       '210'),
+  ('pakan_penuh_mm',   '35'),
+  ('pakan_kosong_mm',  '82');

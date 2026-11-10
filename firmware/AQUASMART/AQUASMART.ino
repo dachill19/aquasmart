@@ -50,12 +50,15 @@ Servo servoPakan;
 // mengirimkannya setiap siklus, jadi menyetel ulang kalibrasi tidak lagi
 // menuntut flash ulang.
 // ==========================================
-int airKering     = 10;   // ADC saat sensor kering (terukur 3-9 pada alat ini)
-int airBasah      = 250;  // ADC saat air di tinggi "penuh" -- MASIH HARUS DIUKUR
-int pakanPenuhMm  = 60;   // jarak sensor ke permukaan pelet saat penuh -- MASIH HARUS DIUKUR
-int pakanKosongMm = 130;  // jarak sensor ke dasar wadah saat kosong (terukur 130 mm
-                          // setelah median dipasang; rata-rata lama 109 mm tertarik
-                          // turun oleh pantulan dinding yang membaca terlalu dekat)
+int airKering     = 10;   // ADC saat sensor kering (terukur 3-10 pada alat ini)
+int airBasah      = 210;  // ADC saat air di tinggi aman tertinggi, yaitu sedikit di
+                          // bawah kabel sensor yang tidak terlindungi. Di ketinggian
+                          // itu strip berayun 187-235, jadi 210 adalah nilai tipikal
+                          // dan bukan puncaknya: memasang terlalu tinggi membuat pompa
+                          // terus mengisi melewati kabel, memasang terlalu rendah
+                          // hanya membuatnya berhenti lebih awal.
+int pakanPenuhMm  = 35;   // jarak sensor ke permukaan pakan saat wadah penuh
+int pakanKosongMm = 82;   // jarak sensor ke dasar wadah lurus saat kosong
 
 // Wadah pakan berbentuk kerucut, jadi sebagian gema datang dari dinding miring
 // dan bukan dari permukaan pelet. Satu ping tunggal pernah menghasilkan 0,07 cm
