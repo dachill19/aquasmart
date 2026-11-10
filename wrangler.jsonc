@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "aquasmart",
+  "main": "./src/worker/index.ts",
+  "compatibility_date": "2026-11-09",
+
+  // Pinned on purpose: this OAuth token can also reach two client accounts,
+  // and a deploy must never land in one of those.
+  "account_id": "03b94b93d3f8df8429b4bab0338d2fcf",
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "aquasmart",
+      "database_id": "f26b630d-812f-4b4b-952a-a03211a854a0"
+    }
+  ],
+
+  // Vite writes the client bundle here. Unmatched paths fall back to index.html
+  // so the SPA owns routing; /api/* reaches the Worker first.
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
+  "observability": {
+    "enabled": true
+  }
+}
