@@ -7,10 +7,16 @@
  * interval, which the dashboard states rather than hides.
  */
 import { Hono } from "hono";
+import { kirimSemua, pesanEvent, tanganiWebhook } from "./telegram";
 
 type Bindings = {
   DB: D1Database;
   DEVICE_KEY?: string;
+  // Telegram alerts and commands. Absent bindings simply disable the bridge,
+  // so the rest of the system runs unchanged without them.
+  TELEGRAM_BOT_TOKEN?: string;
+  TELEGRAM_CHAT_ID?: string;
+  TELEGRAM_WEBHOOK_SECRET?: string;
 };
 
 export type Reading = {
@@ -149,17 +155,29 @@ app.post("/api/telemetry", async (c) => {
   // exactly-once. Without it one feed warning was stored sixty times.
   if (Array.isArray(body.events)) {
     const events = (body.events as Array<{ id?: string; kind?: string; message?: string }>).slice(0, 5);
+    const baru: string[] = [];
+
     for (const e of events) {
-      await db
+      const kind = String(e.kind ?? "info").slice(0, 32);
+      const message = String(e.message ?? "").slice(0, 200);
+      const res = await db
         .prepare("INSERT OR IGNORE INTO events (ts, kind, message, ext_id) VALUES (?,?,?,?)")
-        .bind(
-          now,
-          String(e.kind ?? "info").slice(0, 32),
-          String(e.message ?? "").slice(0, 200),
-          e.id ? String(e.id).slice(0, 48) : null
-        )
+        .bind(now, kind, message, e.id ? String(e.id).slice(0, 48) : null)
         .run();
+
+      // Only a row that was actually written deserves an alert. A resent queue
+      // inserts nothing thanks to the unique ext_id, and must stay silent too,
+      // otherwise one warning would be pushed to the owner on every retry.
+      if (res.meta.changes > 0) {
+        const teks = pesanEvent(kind, message);
+        if (teks) baru.push(teks);
+      }
     }
+
+    // The device is holding a TLS connection open waiting for this response,
+    // and that time is its most expensive resource, so the alerts are sent
+    // after the device has been answered rather than before.
+    if (baru.length) c.executionCtx.waitUntil(kirimSemua(c.env, baru));
   }
 
   // Acknowledge whatever the device says it carried out.
@@ -272,6 +290,13 @@ app.post("/api/command", async (c) => {
 
   return c.json({ ok: true, id: res.meta.last_row_id, type, payload });
 });
+
+/**
+ * Telegram webhook. Commands arriving here land on the same queue the
+ * dashboard writes to, so the bot is a second interface rather than a second
+ * control path with rules of its own.
+ */
+app.post("/api/telegram", (c) => tanganiWebhook(c.req.raw, c.env));
 
 app.get("/api/latest", async (c) => {
   const db = c.env.DB;
