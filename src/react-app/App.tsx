@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Droplets, Fish, TriangleAlert, WifiOff } from "lucide-react";
+import { TriangleAlert, WifiOff } from "lucide-react";
 import { Activity } from "./components/Activity";
 import { ControlDeck } from "./components/ControlDeck";
 import { SettingsStudio } from "./components/SettingsStudio";
@@ -7,6 +7,7 @@ import { StatusHero } from "./components/StatusHero";
 import { TopBar } from "./components/TopBar";
 import { TrendChart } from "./components/TrendChart";
 import { VesselCard } from "./components/VesselCard";
+import { Sparkline } from "./components/Sparkline";
 import { Vitals } from "./components/Vitals";
 import { FeedHopper } from "./components/vessels/FeedHopper";
 import { WaterTank } from "./components/vessels/WaterTank";
@@ -75,10 +76,12 @@ export default function App() {
 
   const waterLow = reading?.level_air != null && reading.level_air < batasAir;
   const feedLow = reading?.stok_pakan != null && reading.stok_pakan < batasPakan;
+  const trendSpan =
+    history.length >= 2 ? `${Math.max(1, Math.round((history[history.length - 1].ts - history[0].ts) / 60000))} menit terakhir` : "";
   const distanceMm = reading?.jarak_pakan != null ? reading.jarak_pakan * 10 : null;
 
   return (
-    <div className="min-h-screen pb-28">
+    <div className="min-h-screen pb-24">
       <TopBar
         lastSeen={reading?.ts ?? null}
         now={now}
@@ -91,7 +94,7 @@ export default function App() {
         {announcement}
       </p>
 
-      <main className="mx-auto max-w-[1360px] px-4 sm:px-8">
+      <main className="mx-auto max-w-[2200px] px-4 sm:px-6 xl:px-8">
         <StatusHero
           reading={reading}
           loading={loading}
@@ -105,7 +108,7 @@ export default function App() {
         {error && (
           <p
             role="alert"
-            className="slide-in mt-6 flex items-start gap-3 rounded-2xl border border-danger/40 bg-danger/10 px-4 py-3.5 text-sm"
+            className="slide-in mt-4 flex items-start gap-3 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm"
           >
             <TriangleAlert size={18} className="mt-px shrink-0 text-danger" aria-hidden="true" />
             <span>
@@ -116,7 +119,7 @@ export default function App() {
         )}
 
         {stale && !error && (
-          <p className="slide-in mt-6 flex items-start gap-3 rounded-2xl border border-line-strong bg-raised px-4 py-3.5 text-sm">
+          <p className="slide-in mt-4 flex items-start gap-3 rounded-xl border border-line-strong bg-raised px-4 py-3 text-sm">
             <WifiOff size={18} className="mt-px shrink-0 text-muted" aria-hidden="true" />
             <span className="text-muted">
               Tampilan dibekukan pada pembacaan pukul <span className="tnum font-medium text-fg">{formatClock(reading.ts)}</span>. Tangki dan
@@ -125,10 +128,9 @@ export default function App() {
           </p>
         )}
 
-        <div className="mt-8 grid gap-5 lg:grid-cols-2">
+        <div className="mt-5 grid gap-4 xl:grid-cols-2 3xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_390px]">
           <VesselCard
             index={0}
-            icon={<Droplets size={18} />}
             label="Ketinggian air"
             value={reading?.level_air ?? null}
             loading={loading}
@@ -146,6 +148,12 @@ export default function App() {
                 stale={stale}
               />
             }
+            trend={
+              <>
+                <p className="label mb-1.5">{trendSpan}</p>
+                <Sparkline values={history.map((p) => p.level_air)} color="var(--accent)" threshold={batasAir} label="Tren ketinggian air" />
+              </>
+            }
             stats={[
               { k: "Ambang", v: `${batasAir}%` },
               { k: "Target isi", v: `${targetAir}%` },
@@ -155,7 +163,6 @@ export default function App() {
 
           <VesselCard
             index={1}
-            icon={<Fish size={18} />}
             label="Stok pakan"
             value={reading?.stok_pakan ?? null}
             loading={loading}
@@ -166,6 +173,12 @@ export default function App() {
             // figure and typing it in needs no conversion.
             readout={[`jarak ${distanceMm !== null ? `${formatNumber(distanceMm)} mm` : "—"}`, `rentang ${settings.pakan_penuh_mm ?? "—"}–${settings.pakan_kosong_mm ?? "—"} mm`]}
             visual={<FeedHopper level={reading?.stok_pakan ?? null} threshold={batasPakan} distanceMm={distanceMm} stale={stale} />}
+            trend={
+              <>
+                <p className="label mb-1.5">{trendSpan}</p>
+                <Sparkline values={history.map((p) => p.stok_pakan)} color="var(--feed)" step threshold={batasPakan} label="Tren stok pakan" />
+              </>
+            }
             stats={[
               { k: "Ambang", v: `${batasPakan}%` },
               { k: "Servo", v: `${settings.durasi_pakan ?? 3} dtk` },
@@ -174,35 +187,34 @@ export default function App() {
             note="Sensor jarak hanya membedakan sekitar lima tingkat (±20%), jadi angka ini bergerak dalam anak tangga."
           />
 
+          <div className="xl:col-span-2 3xl:col-span-1">
+            <ControlDeck
+              settings={settings}
+              pumpOn={Boolean(reading?.pompa)}
+              locked={Boolean(reading?.terkunci)}
+              offline={offline}
+              commands={commands}
+              pendingTypes={pendingTypes}
+              onSent={refresh}
+            />
+          </div>
         </div>
 
-        <div className="mt-5">
-          <ControlDeck
-            settings={settings}
-            pumpOn={Boolean(reading?.pompa)}
-            locked={Boolean(reading?.terkunci)}
-            offline={offline}
-            commands={commands}
-            pendingTypes={pendingTypes}
-            onSent={refresh}
-          />
-        </div>
-
-        <div className="mt-5">
+        <div className="mt-4">
           <Vitals reading={reading} settings={settings} now={now} stale={stale} />
         </div>
 
-        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
           <TrendChart points={history} thresholdAir={batasAir} targetAir={targetAir} />
           <Activity events={latest?.events ?? []} commands={commands} settings={settings} />
         </div>
 
-        <div className="mt-5">
+        <div className="mt-4">
           <SettingsStudio settings={settings} onSaved={refresh} />
         </div>
       </main>
 
-      <footer className="mx-auto mt-14 flex max-w-[1360px] flex-wrap items-center justify-between gap-4 border-t border-line px-4 pt-7 text-xs text-muted sm:px-8">
+      <footer className="mx-auto mt-10 flex max-w-[2200px] flex-wrap items-center justify-between gap-4 border-t border-line px-4 pt-5 text-xs text-muted sm:px-6 xl:px-8">
         <span className="flex items-center gap-2.5">
           <img src="/logo-mark.png" alt="" width={20} height={20} className="h-5 w-5 object-contain opacity-80" />
           <span>

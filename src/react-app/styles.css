@@ -9,6 +9,7 @@
 @theme inline {
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --breakpoint-3xl: 100rem;
 
   --color-bg: var(--bg);
   --color-surface: var(--surface);
@@ -27,70 +28,65 @@
   --color-danger: var(--danger);
 }
 
-/* Dark is the primary theme. Light is the same instrument in daylight: the same
-   hues, re-weighted for contrast on a pale ground rather than simply inverted. */
+/* Restraint is the premium move here: one neutral ground, hairline edges, and colour
+   spent only on data (water blue, feed amber) and on exceptions. Light is the same
+   instrument in daylight, re-weighted for contrast rather than inverted. */
 :root {
-  --bg: #eaf1f8;
-  --surface: rgb(255 255 255 / 0.82);
-  --raised: rgb(5 67 118 / 0.045);
-  --line: rgb(5 67 118 / 0.11);
-  --line-strong: rgb(5 67 118 / 0.22);
-  --fg: #0a1c30;
-  --muted: #4d6279;
-  --faint: #8396ab;
+  --bg: #f2f5f9;
+  --surface: #ffffff;
+  --raised: #f4f7fb;
+  --line: rgb(10 30 55 / 0.09);
+  --line-strong: rgb(10 30 55 / 0.17);
+  --fg: #0a1626;
+  --muted: #54677d;
+  --faint: #8a9aae;
 
   --brand: #054376;
-  --accent: #0b73d9;
-  --accent-hi: #2b95ff;
-  --aqua: #0791b3;
-  --feed: #c77a10;
-  --ok: #0c9a68;
-  --warn: #b8780f;
-  --danger: #d23552;
+  --accent: #0a68cc;
+  --accent-hi: #2d8cf0;
+  --aqua: #078aa6;
+  --feed: #c27a0c;
+  --ok: #0b8f62;
+  --warn: #a8700b;
+  --danger: #cf3b4f;
 
-  --glow-a: rgb(43 149 255 / 0.22);
-  --glow-b: rgb(7 145 179 / 0.12);
-  --sheen: rgb(255 255 255 / 0.7);
-  --card-shadow: 0 1px 2px rgb(5 67 118 / 0.06), 0 18px 40px -22px rgb(5 67 118 / 0.28);
-  --pipe: #b9c9da;
-  --pipe-inner: #e7eef6;
-  --glass: rgb(255 255 255 / 0.55);
-  --glass-edge: rgb(5 67 118 / 0.3);
-  --water-hi: #35b8ff;
-  --water-lo: #0a5cb8;
-  --halo: rgb(255 255 255 / 0.9);
+  --glow: rgb(5 67 118 / 0.07);
+  --card-shadow: 0 1px 2px rgb(10 30 55 / 0.04);
+  --pipe: #b4c3d4;
+  --pipe-inner: #e9eff6;
+  --glass: rgb(255 255 255 / 0.5);
+  --glass-edge: rgb(10 30 55 / 0.28);
+  --water-hi: #3fb2ff;
+  --water-lo: #0b5fc0;
 }
 
 .dark {
-  --bg: #050c18;
-  --surface: rgb(12 26 46 / 0.72);
-  --raised: rgb(160 200 245 / 0.055);
-  --line: rgb(148 190 235 / 0.12);
-  --line-strong: rgb(148 190 235 / 0.24);
-  --fg: #eaf2fc;
-  --muted: #94a9c3;
-  --faint: #5d7692;
+  --bg: #070b11;
+  --surface: #0c121b;
+  --raised: #111926;
+  --line: rgb(255 255 255 / 0.075);
+  --line-strong: rgb(255 255 255 / 0.14);
+  --fg: #eef3f9;
+  --muted: #8b9bb0;
+  --faint: #5c6c82;
 
   --brand: #054376;
-  --accent: #3da2ff;
-  --accent-hi: #7cc2ff;
-  --aqua: #35d2ee;
-  --feed: #f5a524;
-  --ok: #35d39b;
-  --warn: #fbbf24;
-  --danger: #fb6f88;
+  --accent: #55a8ff;
+  --accent-hi: #8cc6ff;
+  --aqua: #3ccbe6;
+  --feed: #f2a93b;
+  --ok: #3fc590;
+  --warn: #e8ae3d;
+  --danger: #f2646f;
 
-  --glow-a: rgb(5 67 118 / 0.75);
-  --glow-b: rgb(53 210 238 / 0.08);
-  --sheen: rgb(180 215 255 / 0.07);
-  --card-shadow: 0 1px 0 rgb(180 215 255 / 0.05) inset, 0 28px 60px -28px rgb(0 0 0 / 0.75);
-  --pipe: #1e3552;
-  --pipe-inner: #0a1829;
-  --glass: rgb(160 200 245 / 0.045);
-  --glass-edge: rgb(160 205 255 / 0.32);
-  --water-hi: #1f9bff;
-  --water-lo: #063a78;
-  --halo: rgb(5 12 24 / 0.85);
+  --glow: rgb(5 67 118 / 0.55);
+  --card-shadow: none;
+  --pipe: #1f3250;
+  --pipe-inner: #09111d;
+  --glass: rgb(160 200 245 / 0.04);
+  --glass-edge: rgb(160 205 255 / 0.3);
+  --water-hi: #2399ff;
+  --water-lo: #07408a;
 }
 
 @layer base {
@@ -109,22 +105,19 @@
     color: var(--fg);
     font-family: var(--font-sans);
     font-feature-settings: "ss01" 1, "cv11" 1;
+    font-size: 14px;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
-  /* One atmosphere for the whole page: the project's own navy pooling at the top
-     like light through water, and a faint aqua return at the bottom. */
+  /* One light source: the project's navy, pooled at the top-left like daylight through water. */
   body::before {
     content: "";
     position: fixed;
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    background:
-      radial-gradient(60rem 38rem at 12% -8%, var(--glow-a), transparent 70%),
-      radial-gradient(48rem 30rem at 100% 0%, var(--glow-b), transparent 70%),
-      radial-gradient(50rem 30rem at 50% 118%, var(--glow-b), transparent 70%);
+    background: radial-gradient(70rem 32rem at 8% -10%, var(--glow), transparent 70%);
   }
 
   ::selection {
@@ -160,66 +153,45 @@
 
 @layer components {
   .card {
-    position: relative;
-    border-radius: 1.5rem;
+    border-radius: 0.875rem;
     border: 1px solid var(--line);
     background: var(--surface);
     box-shadow: var(--card-shadow);
-    -webkit-backdrop-filter: blur(20px) saturate(1.25);
-    backdrop-filter: blur(20px) saturate(1.25);
-  }
-  .card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    background: linear-gradient(180deg, var(--sheen), transparent 42%);
-  }
-  .card > * {
-    position: relative;
   }
 
-  .eyebrow {
-    font-size: 0.6875rem;
-    line-height: 1;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+  /* Small sentence-case label. All-caps tracking on every label read as a template. */
+  .label {
+    font-size: 0.75rem;
+    line-height: 1.2;
+    font-weight: 500;
     color: var(--muted);
   }
 
-  /* Status chips: tone is carried by colour and by the words, never colour alone. */
-  .chip {
+  /* Status tag: tone by colour and by the words, never colour alone. */
+  .tag {
+    --tone: var(--muted);
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-    padding: 0.3rem 0.7rem;
+    height: 1.5rem;
+    border-radius: 0.4rem;
+    padding: 0 0.5rem;
     font-size: 0.75rem;
-    line-height: 1;
     font-weight: 500;
     white-space: nowrap;
-    color: var(--muted);
-    background: var(--raised);
-  }
-  .chip[data-tone="ok"],
-  .chip[data-tone="warn"],
-  .chip[data-tone="danger"],
-  .chip[data-tone="info"] {
-    --tone: var(--ok);
     color: var(--tone);
-    border-color: color-mix(in oklab, var(--tone) 32%, transparent);
-    background: color-mix(in oklab, var(--tone) 13%, transparent);
+    background: color-mix(in oklab, var(--tone) 11%, transparent);
   }
-  .chip[data-tone="warn"] {
+  .tag[data-tone="ok"] {
+    --tone: var(--ok);
+  }
+  .tag[data-tone="warn"] {
     --tone: var(--warn);
   }
-  .chip[data-tone="danger"] {
+  .tag[data-tone="danger"] {
     --tone: var(--danger);
   }
-  .chip[data-tone="info"] {
+  .tag[data-tone="info"] {
     --tone: var(--accent);
   }
 
@@ -228,80 +200,76 @@
     align-items: center;
     justify-content: center;
     gap: 0.6rem;
-    border-radius: 1rem;
+    min-height: 2.75rem;
+    border-radius: 0.625rem;
     border: 1px solid var(--line-strong);
-    padding: 0.8rem 1.15rem;
+    padding: 0 1rem;
     font-size: 0.875rem;
-    font-weight: 600;
+    font-weight: 550;
     color: var(--fg);
-    background: var(--raised);
+    background: transparent;
     transition:
-      transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
-      background-color 160ms,
-      border-color 160ms,
-      box-shadow 160ms,
-      opacity 160ms;
+      background-color 140ms,
+      border-color 140ms,
+      opacity 140ms,
+      transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
   }
   .btn:hover:not(:disabled) {
-    border-color: var(--accent);
-    background: color-mix(in oklab, var(--accent) 12%, transparent);
+    background: var(--raised);
+    border-color: color-mix(in oklab, var(--fg) 30%, transparent);
   }
   .btn:active:not(:disabled) {
     transform: scale(0.985);
   }
   .btn:disabled {
     cursor: not-allowed;
-    opacity: 0.45;
+    opacity: 0.4;
   }
-  /* A command in flight is not a dead control: it keeps its colour and shows a spinner. */
+  /* A command in flight is not a dead control: it keeps its look and shows a spinner. */
   .btn:disabled[data-waiting="true"] {
-    opacity: 0.9;
+    opacity: 0.85;
     cursor: progress;
   }
+  /* The one loud button on the page is plain ink on ground: no gradient, no glow. */
   .btn-primary {
-    border-color: color-mix(in oklab, var(--accent-hi) 55%, transparent);
-    color: #fff;
-    background: linear-gradient(135deg, #1d8cf7 0%, #0b5fc4 55%, #054376 100%);
-    box-shadow:
-      0 1px 0 rgb(255 255 255 / 0.28) inset,
-      0 14px 30px -12px rgb(11 115 217 / 0.75);
+    border-color: transparent;
+    color: var(--bg);
+    background: var(--fg);
   }
   .btn-primary:hover:not(:disabled) {
-    border-color: var(--accent-hi);
-    background: linear-gradient(135deg, #3a9dff 0%, #1170da 55%, #07508f 100%);
-    box-shadow:
-      0 1px 0 rgb(255 255 255 / 0.32) inset,
-      0 18px 36px -12px rgb(11 115 217 / 0.9);
+    border-color: transparent;
+    background: color-mix(in oklab, var(--fg) 88%, var(--bg));
   }
 
   .field {
     display: flex;
     align-items: center;
-    border-radius: 0.875rem;
+    height: 2.75rem;
+    border-radius: 0.625rem;
     border: 1px solid var(--line-strong);
     background: var(--raised);
     transition:
-      border-color 150ms,
-      box-shadow 150ms;
+      border-color 140ms,
+      box-shadow 140ms;
   }
   .field:hover {
-    border-color: color-mix(in oklab, var(--accent) 50%, var(--line-strong));
+    border-color: color-mix(in oklab, var(--fg) 30%, transparent);
   }
   .field:focus-within {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 24%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent);
   }
   .field[data-invalid="true"] {
     border-color: var(--danger);
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--danger) 20%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--danger) 18%, transparent);
   }
   .field input {
     width: 100%;
     min-width: 0;
     background: transparent;
-    padding: 0.7rem 0.85rem;
+    padding: 0 0.7rem;
     font-family: var(--font-mono);
-    font-size: 0.9375rem;
+    font-size: 0.9rem;
     color: var(--fg);
     outline: none;
     font-variant-numeric: tabular-nums;
@@ -312,7 +280,7 @@
     background: linear-gradient(
       100deg,
       var(--raised) 30%,
-      color-mix(in oklab, var(--fg) 10%, transparent) 50%,
+      color-mix(in oklab, var(--fg) 9%, transparent) 50%,
       var(--raised) 70%
     );
     background-size: 220% 100%;
@@ -325,12 +293,12 @@
 @keyframes rise-in {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(8px);
   }
 }
 .rise {
-  animation: rise-in 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: calc(var(--i, 0) * 70ms);
+  animation: rise-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
 }
 
 @keyframes slide-in {

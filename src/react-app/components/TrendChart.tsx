@@ -11,10 +11,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { LineChart } from "lucide-react";
 import type { HistoryPoint } from "../lib/api";
 import { formatClock, formatNumber, formatShortClock } from "../lib/format";
-import { SectionTitle } from "./ui";
+import { CardHead } from "./ui";
 
 type Props = { points: HistoryPoint[]; thresholdAir: number; targetAir: number };
 
@@ -29,22 +28,22 @@ function Legend({
   active: Record<SeriesKey, boolean>;
   onToggle: (k: SeriesKey) => void;
 }) {
-  const items: Array<{ key: SeriesKey; label: string; swatch: string }> = [
+  const items: Array<{ key: SeriesKey; label: string; swatch: string; tall?: boolean }> = [
     { key: "level_air", label: "Ketinggian air", swatch: "var(--accent)" },
     { key: "stok_pakan", label: "Stok pakan", swatch: "var(--feed)" },
-    { key: "pump", label: "Pompa menyala", swatch: "color-mix(in oklab, var(--aqua) 55%, transparent)" },
+    { key: "pump", label: "Pompa menyala", swatch: "color-mix(in oklab, var(--aqua) 40%, transparent)", tall: true },
   ];
   return (
-    <div className="flex flex-wrap gap-2" role="group" aria-label="Pilih seri yang ditampilkan">
+    <div className="flex flex-wrap gap-1" role="group" aria-label="Pilih seri yang ditampilkan">
       {items.map((it) => (
         <button
           key={it.key}
           type="button"
           aria-pressed={active[it.key]}
           onClick={() => onToggle(it.key)}
-          className="flex items-center gap-2 rounded-full border border-line-strong px-3 py-1.5 text-xs font-medium transition-colors hover:border-accent aria-pressed:bg-raised aria-[pressed=false]:opacity-50"
+          className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-raised hover:text-fg aria-[pressed=false]:opacity-45"
         >
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: it.swatch }} />
+          <span className={`w-3.5 rounded-full ${it.tall ? "h-3" : "h-[3px]"}`} style={{ background: it.swatch }} />
           {it.label}
         </button>
       ))}
@@ -58,7 +57,7 @@ function Tip({ active, payload }: TipProps) {
   if (!active || !payload?.length) return null;
   const p = payload[0].payload;
   return (
-    <div className="rounded-xl border border-line-strong bg-[color-mix(in_oklab,var(--bg)_88%,var(--surface))] px-3.5 py-3 text-xs shadow-xl backdrop-blur">
+    <div className="rounded-lg border border-line-strong bg-surface px-3.5 py-3 text-xs shadow-xl">
       <p className="tnum font-mono text-muted">{formatClock(p.ts)}</p>
       <dl className="mt-2 space-y-1.5">
         {p.level_air !== null && (
@@ -116,27 +115,28 @@ export function TrendChart({ points, thresholdAir, targetAir }: Props) {
   const spanMin = data.length >= 2 ? Math.max(1, Math.round((data[data.length - 1].ts - data[0].ts) / 60000)) : 0;
 
   return (
-    <section className="card rise flex flex-col p-5 sm:p-7" style={{ "--i": 7 } as CSSProperties}>
-      <SectionTitle
-        icon={<LineChart size={18} />}
+    <section className="card rise flex flex-col p-5" style={{ "--i": 7 } as CSSProperties}>
+      <CardHead
         title="Riwayat pembacaan"
-        hint={spanMin ? `${data.length} pembacaan dalam ${spanMin} menit terakhir` : "Pembacaan terbaru dari alat"}
-        right={<Legend active={active} onToggle={(k) => setActive((a) => ({ ...a, [k]: !a[k] }))} />}
-      />
+        meta={spanMin ? `${data.length} pembacaan · ${spanMin} menit terakhir` : "pembacaan terbaru dari alat"}
+      >
+        <Legend active={active} onToggle={(k) => setActive((a) => ({ ...a, [k]: !a[k] }))} />
+      </CardHead>
 
       {data.length < 2 ? (
-        <p className="mt-5 flex min-h-64 items-center justify-center rounded-2xl border border-dashed border-line-strong px-6 text-center text-sm text-muted">
+        <p className="mt-4 flex min-h-64 flex-1 items-center justify-center rounded-lg border border-dashed border-line-strong px-6 text-center text-sm text-muted">
           {data.length === 0
             ? "Belum ada pembacaan tersimpan. Grafik muncul setelah alat mengirim beberapa laporan."
             : "Baru satu pembacaan tersimpan. Grafik butuh sedikitnya dua titik."}
         </p>
       ) : (
-        <div className="mt-6 h-72 w-full sm:h-80">
+        <div className="relative mt-4 min-h-[300px] flex-1">
+          <div className="absolute inset-0">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={data} margin={{ top: 8, right: 28, bottom: 0, left: -14 }}>
               <defs>
                 <linearGradient id="fill-water" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stopColor="var(--accent)" stopOpacity="0.38" />
+                  <stop offset="0" stopColor="var(--accent)" stopOpacity="0.28" />
                   <stop offset="1" stopColor="var(--accent)" stopOpacity="0" />
                 </linearGradient>
               </defs>
@@ -190,7 +190,7 @@ export function TrendChart({ points, thresholdAir, targetAir }: Props) {
                   type="monotone"
                   dataKey="level_air"
                   stroke="var(--accent)"
-                  strokeWidth={2.5}
+                  strokeWidth={2}
                   fill="url(#fill-water)"
                   dot={false}
                   activeDot={{ r: 5, strokeWidth: 2, stroke: "var(--bg)", fill: "var(--accent)" }}
@@ -213,6 +213,7 @@ export function TrendChart({ points, thresholdAir, targetAir }: Props) {
               )}
             </ComposedChart>
           </ResponsiveContainer>
+          </div>
         </div>
       )}
     </section>

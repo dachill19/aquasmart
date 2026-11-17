@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type CSSProperties, type ReactNode } from "react";
-import { Check, ChevronDown, Minus, Plus, Ruler, SlidersHorizontal } from "lucide-react";
+import { Check, Minus, Plus } from "lucide-react";
 import { sendCommand, type Settings } from "../lib/api";
 import { fromTimeValue, toTimeValue } from "../lib/format";
-import { SectionTitle, Spinner } from "./ui";
+import { CardHead, Spinner } from "./ui";
 
 type Props = { settings: Settings; onSaved: () => void };
 
@@ -24,14 +24,14 @@ type NumKey = Exclude<keyof Draft, "pagi" | "sore">;
 type Field = { key: NumKey; label: string; hint?: string; min: number; max: number; unit: string };
 
 const FEED: Field[] = [
-  { key: "durasi_pakan", label: "Servo terbuka", hint: "Lama pakan dijatuhkan", min: 1, max: 10, unit: "detik" },
+  { key: "durasi_pakan", label: "Servo terbuka", hint: "lama pakan dijatuhkan", min: 1, max: 10, unit: "detik" },
+  { key: "batas_pakan", label: "Ambang pakan", hint: "peringatan stok menipis", min: 5, max: 95, unit: "%" },
 ];
 
 const WATER: Field[] = [
-  { key: "batas_air", label: "Pompa menyala di bawah", hint: "Ambang air rendah", min: 5, max: 95, unit: "%" },
-  { key: "target_air", label: "Pompa mengisi sampai", hint: "Harus di atas ambang", min: 10, max: 95, unit: "%" },
-  { key: "durasi_pompa", label: "Pompa maksimal", hint: "Lalu berhenti dan terkunci bila air tetap rendah", min: 1, max: 60, unit: "detik" },
-  { key: "batas_pakan", label: "Ambang pakan", hint: "Peringatan stok menipis", min: 5, max: 95, unit: "%" },
+  { key: "batas_air", label: "Pompa menyala di bawah", hint: "ambang air rendah", min: 5, max: 95, unit: "%" },
+  { key: "target_air", label: "Pompa mengisi sampai", hint: "harus di atas ambang", min: 10, max: 95, unit: "%" },
+  { key: "durasi_pompa", label: "Pompa maksimal", hint: "lalu berhenti sendiri", min: 1, max: 60, unit: "detik" },
 ];
 
 /**
@@ -39,10 +39,10 @@ const WATER: Field[] = [
  * a sensor or swapping the hopper costs one save instead of a re-flash.
  */
 const CALIBRATION: Field[] = [
-  { key: "air_kering", label: "Air, titik 0%", hint: "Bacaan ADC saat sensor kering", min: 0, max: 500, unit: "ADC" },
-  { key: "air_basah", label: "Air, titik 100%", hint: "Bacaan ADC pada tinggi maksimal aman", min: 20, max: 1023, unit: "ADC" },
-  { key: "pakan_penuh_mm", label: "Pakan, titik 100%", hint: "Jarak sensor saat wadah penuh", min: 20, max: 600, unit: "mm" },
-  { key: "pakan_kosong_mm", label: "Pakan, titik 0%", hint: "Jarak sensor saat wadah kosong", min: 20, max: 600, unit: "mm" },
+  { key: "air_kering", label: "Air, titik 0%", hint: "ADC saat sensor kering", min: 0, max: 500, unit: "ADC" },
+  { key: "air_basah", label: "Air, titik 100%", hint: "ADC pada tinggi maksimal aman", min: 20, max: 1023, unit: "ADC" },
+  { key: "pakan_penuh_mm", label: "Pakan, titik 100%", hint: "jarak sensor saat penuh", min: 20, max: 600, unit: "mm" },
+  { key: "pakan_kosong_mm", label: "Pakan, titik 0%", hint: "jarak sensor saat kosong", min: 20, max: 600, unit: "mm" },
 ];
 
 const NUMERIC = [...FEED, ...WATER, ...CALIBRATION];
@@ -68,13 +68,15 @@ function invalid(f: Field, raw: string): boolean {
   return raw === "" || !Number.isInteger(n) || n < f.min || n > f.max;
 }
 
-function Group({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+function Section({ title, hint, children }: { title: string; hint: string; children: ReactNode }) {
   return (
-    <fieldset className="min-w-0 rounded-2xl border border-line bg-raised p-5">
+    <fieldset className="grid min-w-0 gap-4 border-t border-line py-6 first:border-t-0 first:pt-5 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-8">
       <legend className="sr-only">{title}</legend>
-      <p className="eyebrow" aria-hidden="true">{title}</p>
-      {hint && <p className="mt-2 text-xs leading-relaxed text-muted">{hint}</p>}
-      <div className="mt-4 grid gap-4">{children}</div>
+      <div aria-hidden="true">
+        <p className="text-[0.88rem] font-semibold">{title}</p>
+        <p className="mt-1.5 max-w-[34ch] text-xs leading-relaxed text-muted">{hint}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-5 md:grid-cols-4">{children}</div>
     </fieldset>
   );
 }
@@ -84,9 +86,9 @@ function NumberField({ f, value, onChange }: { f: Field; value: string; onChange
   const bump = (d: number) => onChange(String(Math.min(f.max, Math.max(f.min, (Number(value) || f.min) + d))));
   return (
     <label className="block">
-      <span className="flex items-baseline justify-between gap-3">
-        <span className="text-[0.82rem] font-medium">{f.label}</span>
-        <span className="tnum font-mono text-[0.66rem] text-faint">
+      <span className="flex items-baseline justify-between gap-2">
+        <span className="text-[0.8rem] font-medium">{f.label}</span>
+        <span className="tnum font-mono text-[0.64rem] text-faint">
           {f.min}–{f.max}
         </span>
       </span>
@@ -96,9 +98,9 @@ function NumberField({ f, value, onChange }: { f: Field; value: string; onChange
           tabIndex={-1}
           aria-label={`Kurangi ${f.label}`}
           onClick={() => bump(-1)}
-          className="flex h-10 w-10 shrink-0 items-center justify-center text-muted transition-colors hover:text-accent"
+          className="flex h-full w-9 shrink-0 items-center justify-center text-muted transition-colors hover:text-fg"
         >
-          <Minus size={15} />
+          <Minus size={14} />
         </button>
         <input
           type="number"
@@ -110,15 +112,15 @@ function NumberField({ f, value, onChange }: { f: Field; value: string; onChange
           aria-invalid={bad}
           className="text-center"
         />
-        <span className="shrink-0 pr-1 font-mono text-[0.72rem] text-muted">{f.unit}</span>
+        <span className="shrink-0 font-mono text-[0.7rem] text-muted">{f.unit}</span>
         <button
           type="button"
           tabIndex={-1}
           aria-label={`Tambah ${f.label}`}
           onClick={() => bump(1)}
-          className="flex h-10 w-10 shrink-0 items-center justify-center text-muted transition-colors hover:text-accent"
+          className="flex h-full w-9 shrink-0 items-center justify-center text-muted transition-colors hover:text-fg"
         >
-          <Plus size={15} />
+          <Plus size={14} />
         </button>
       </span>
       {f.hint && <span className="mt-1.5 block text-[0.7rem] leading-snug text-faint">{f.hint}</span>}
@@ -126,11 +128,6 @@ function NumberField({ f, value, onChange }: { f: Field; value: string; onChange
   );
 }
 
-/**
- * Two plain digit boxes instead of <input type="time">: the native control follows
- * the browser's locale and shows "07:00 AM" on an English-language laptop, which is
- * not how a feeding time is written here.
- */
 function TimeField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   const [h = "", m = ""] = value.split(":");
 
@@ -150,24 +147,24 @@ function TimeField({ label, value, onChange }: { label: string; value: string; o
 
   return (
     <div>
-      <span className="text-[0.82rem] font-medium" id={`t-${label}`}>
+      <span className="block text-[0.8rem] font-medium" id={`t-${label}`}>
         {label}
       </span>
-      <span className="field mt-2 justify-center gap-1 px-3" data-invalid={fromTimeValue(value) === null} role="group" aria-labelledby={`t-${label}`}>
+      <span className="field mt-2 justify-center gap-0.5 px-3" data-invalid={fromTimeValue(value) === null} role="group" aria-labelledby={`t-${label}`}>
         <input
           {...part(23, h, (d) => `${d}:${m}`)}
           aria-label={`${label}, jam`}
           placeholder="00"
-          className="!w-14 text-center !text-[1.35rem] !font-medium"
+          className="!w-11 text-center !text-[1.05rem] !font-medium"
         />
-        <span className="pb-0.5 font-mono text-xl text-muted" aria-hidden="true">
+        <span className="pb-px font-mono text-base text-muted" aria-hidden="true">
           :
         </span>
         <input
           {...part(59, m, (d) => `${h}:${d}`)}
           aria-label={`${label}, menit`}
           placeholder="00"
-          className="!w-14 text-center !text-[1.35rem] !font-medium"
+          className="!w-11 text-center !text-[1.05rem] !font-medium"
         />
       </span>
     </div>
@@ -244,69 +241,43 @@ export function SettingsStudio({ settings, onSaved }: Props) {
   const barVisible = changed > 0 || state === "saved" || error !== null;
 
   return (
-    <section className="card rise p-5 sm:p-7" style={{ "--i": 9 } as CSSProperties} id="setelan">
-      <SectionTitle
-        icon={<SlidersHorizontal size={18} />}
-        title="Setelan"
-        hint="Disimpan di server dan dikirim ke alat pada laporan berikutnya, jadi bertahan walau alat sempat mati"
-      />
+    <section className="card rise p-5" style={{ "--i": 9 } as CSSProperties} id="setelan">
+      <CardHead title="Setelan" meta="disimpan di server dan dikirim ke alat pada laporan berikutnya, jadi bertahan walau alat sempat mati" />
 
       <form
         onSubmit={(e) => {
           e.preventDefault();
           void submit();
         }}
-        className="mt-6"
+        className="mt-4"
       >
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Group title="Jadwal pakan" hint="Dua kali sehari, otomatis.">
-            <TimeField label="Pakan pagi" value={draft.pagi} onChange={(v) => edit({ pagi: v })} />
-            <TimeField label="Pakan sore" value={draft.sore} onChange={(v) => edit({ sore: v })} />
-            {FEED.map((f) => (
-              <NumberField key={f.key} f={f} value={draft[f.key]} onChange={(v) => edit({ [f.key]: v })} />
-            ))}
-          </Group>
+        <Section title="Pakan" hint="Dua jadwal harian otomatis. Sensor jarak hanya membedakan sekitar 20%, jadi ambang bergerak dalam anak tangga.">
+          <TimeField label="Pakan pagi" value={draft.pagi} onChange={(v) => edit({ pagi: v })} />
+          <TimeField label="Pakan sore" value={draft.sore} onChange={(v) => edit({ sore: v })} />
+          {FEED.map((f) => (
+            <NumberField key={f.key} f={f} value={draft[f.key]} onChange={(v) => edit({ [f.key]: v })} />
+          ))}
+        </Section>
 
-          <div className="grid gap-4 lg:col-span-2 lg:grid-cols-2">
-            <Group title="Pompa air" hint="Pompa menyala saat air di bawah ambang dan berhenti di target.">
-              {WATER.slice(0, 3).map((f) => (
-                <NumberField key={f.key} f={f} value={draft[f.key]} onChange={(v) => edit({ [f.key]: v })} />
-              ))}
-            </Group>
-            <Group title="Peringatan pakan" hint="Peringatan dikirim saat stok di bawah ambang. Resolusi sensor sekitar 20%.">
-              {WATER.slice(3).map((f) => (
-                <NumberField key={f.key} f={f} value={draft[f.key]} onChange={(v) => edit({ [f.key]: v })} />
-              ))}
-            </Group>
-          </div>
-        </div>
+        <Section title="Pompa air" hint="Pompa menyala saat air di bawah ambang dan berhenti di target. Bila air tetap rendah setelah batas waktu, pompa terkunci.">
+          {WATER.map((f) => (
+            <NumberField key={f.key} f={f} value={draft[f.key]} onChange={(v) => edit({ [f.key]: v })} />
+          ))}
+          <p className="col-span-2 self-center rounded-lg border border-dashed border-line-strong px-4 py-3 text-xs leading-relaxed text-muted md:col-span-1">
+            Pompa menyala saat air di bawah <b className="tnum font-semibold text-fg">{draft.batas_air}%</b>, mengisi sampai{" "}
+            <b className="tnum font-semibold text-fg">{draft.target_air}%</b>, dan berhenti sendiri setelah{" "}
+            <b className="tnum font-semibold text-fg">{draft.durasi_pompa} detik</b>.
+          </p>
+        </Section>
 
-        <details className="group mt-4 rounded-2xl border border-line bg-raised">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden">
-            <span className="flex items-center gap-3">
-              <Ruler size={17} className="text-accent" aria-hidden="true" />
-              <span>
-                <span className="block text-[0.9rem] font-semibold">Kalibrasi sensor</span>
-                <span className="mt-0.5 block text-xs text-muted">
-                  Air {draft.air_kering}–{draft.air_basah} ADC · pakan {draft.pakan_penuh_mm}–{draft.pakan_kosong_mm} mm
-                </span>
-              </span>
-            </span>
-            <ChevronDown size={18} className="text-muted transition-transform duration-300 group-open:rotate-180" aria-hidden="true" />
-          </summary>
-          <div className="border-t border-line px-5 pb-5 pt-4">
-            <p className="max-w-[78ch] text-xs leading-relaxed text-muted">
-              Dua titik per sensor, diukur langsung pada alat. Keduanya batas operasi, bukan batas fisik: 0% berarti
-              &ldquo;sudah waktunya diisi&rdquo; dan 100% berarti &ldquo;setinggi yang masih aman&rdquo;, bukan tangki kosong
-              dan tangki luber. Angkanya terbaca di bawah tiap kartu: ADC untuk air, milimeter untuk pakan.
-            </p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {CALIBRATION.map((f) => (
-                <NumberField key={f.key} f={f} value={draft[f.key]} onChange={(v) => edit({ [f.key]: v })} />
-              ))}
-            </div>
-          </div>
-        </details>
+        <Section
+          title="Kalibrasi sensor"
+          hint="Dua titik per sensor, diukur langsung pada alat. Keduanya batas operasi, bukan batas fisik: 100% berarti setinggi yang masih aman, bukan tangki luber."
+        >
+          {CALIBRATION.map((f) => (
+            <NumberField key={f.key} f={f} value={draft[f.key]} onChange={(v) => edit({ [f.key]: v })} />
+          ))}
+        </Section>
 
         {/* Floating save bar: unsaved edits are the one thing on this page that must not be missed. */}
         <div
@@ -315,7 +286,7 @@ export function SettingsStudio({ settings, onSaved }: Props) {
           aria-hidden={!barVisible}
         >
           <div
-            className="pointer-events-auto flex w-full max-w-[640px] flex-wrap items-center justify-between gap-x-5 gap-y-3 rounded-2xl border border-line-strong bg-[color-mix(in_oklab,var(--bg)_82%,var(--surface))] py-3 pl-5 pr-3 shadow-2xl backdrop-blur-xl"
+            className="pointer-events-auto flex w-full max-w-[640px] flex-wrap items-center justify-between gap-x-5 gap-y-3 rounded-xl border border-line-strong bg-surface py-2.5 pl-5 pr-2.5 shadow-[0_20px_50px_-12px_rgb(0_0_0/0.55)]"
             role="status"
           >
             <p className="flex items-center gap-2.5 text-sm" style={{ color: error ? "var(--danger)" : state === "saved" ? "var(--ok)" : undefined }}>
@@ -334,13 +305,13 @@ export function SettingsStudio({ settings, onSaved }: Props) {
             </p>
             <div className="flex gap-2">
               {changed > 0 && state !== "saved" && (
-                <button type="button" onClick={discard} className="btn !px-4 !py-2.5" disabled={state === "saving"} tabIndex={barVisible ? 0 : -1}>
+                <button type="button" onClick={discard} className="btn !min-h-10 !px-4" disabled={state === "saving"} tabIndex={barVisible ? 0 : -1}>
                   Batalkan
                 </button>
               )}
               <button
                 type="submit"
-                className="btn btn-primary !px-5 !py-2.5"
+                className="btn btn-primary !min-h-10 !px-5"
                 disabled={state !== "idle" || changed === 0}
                 tabIndex={barVisible ? 0 : -1}
               >

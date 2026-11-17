@@ -1,8 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
-import { CalendarClock, Clock3, Power, Wifi } from "lucide-react";
 import { formatUptime, nextFeeding, signalGrade } from "../lib/format";
 import type { Reading } from "../lib/api";
-import { Chip } from "./ui";
+import { Tag } from "./ui";
 
 type Props = {
   reading: Reading | null;
@@ -11,32 +10,21 @@ type Props = {
   stale: boolean;
 };
 
-function Cell({ icon, label, children, i }: { icon: ReactNode; label: string; children: ReactNode; i: number }) {
+function Cell({ label, children, sub }: { label: string; children: ReactNode; sub?: ReactNode }) {
   return (
-    <div className="card rise flex items-center gap-4 px-5 py-4" style={{ "--i": i } as CSSProperties}>
-      <span
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line-strong bg-raised text-accent"
-        aria-hidden="true"
-      >
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <p className="eyebrow">{label}</p>
-        <div className="mt-2">{children}</div>
-      </div>
+    <div className="px-5 py-4">
+      <p className="label">{label}</p>
+      <div className="mt-2 flex items-center gap-2.5 text-[1.05rem] font-semibold leading-none">{children}</div>
+      {sub && <p className="mt-2 text-xs text-muted">{sub}</p>}
     </div>
   );
 }
 
 function SignalBars({ bars, color }: { bars: number; color: string }) {
   return (
-    <span className="flex h-[18px] items-end gap-[3px]" aria-hidden="true">
+    <span className="flex h-4 items-end gap-[3px]" aria-hidden="true">
       {[1, 2, 3, 4].map((n) => (
-        <span
-          key={n}
-          className="w-[4px] rounded-[1.5px]"
-          style={{ height: 4 + n * 3.5, background: n <= bars ? color : "var(--line-strong)" }}
-        />
+        <span key={n} className="w-[3.5px] rounded-[1px]" style={{ height: 4 + n * 3, background: n <= bars ? color : "var(--line-strong)" }} />
       ))}
     </span>
   );
@@ -60,40 +48,38 @@ export function Vitals({ reading, settings, now, stale }: Props) {
   const next = nextFeeding(settings, now);
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <Cell i={3} icon={<Wifi size={20} />} label="Sinyal WiFi">
-        <div className="flex items-center gap-3">
-          <SignalBars bars={grade?.bars ?? 0} color={gradeColor} />
-          <p className="tnum text-[1.05rem] font-semibold leading-none">
-            {grade ? grade.label : "—"}
-            {reading?.rssi != null && <span className="ml-2 font-mono text-xs font-normal text-muted">{reading.rssi} dBm</span>}
-          </p>
-        </div>
+    <section
+      className="card rise grid grid-cols-2 divide-line max-xl:[&>*:nth-child(n+3)]:border-t max-xl:[&>*:nth-child(n+3)]:border-line xl:grid-cols-4 xl:divide-x"
+      style={{ "--i": 3 } as CSSProperties}
+      aria-label="Kondisi alat"
+    >
+      <Cell
+        label="Sinyal WiFi"
+        sub={reading?.rssi != null ? `${reading.rssi} dBm` : "belum ada pembacaan"}
+      >
+        <SignalBars bars={grade?.bars ?? 0} color={gradeColor} />
+        {grade ? grade.label : "—"}
       </Cell>
 
-      <Cell i={4} icon={<Clock3 size={20} />} label="Alat menyala">
-        <p className="tnum text-[1.05rem] font-semibold leading-none">{formatUptime(reading?.uptime_ms ?? null)}</p>
+      <Cell label="Alat menyala" sub="sejak boot terakhir">
+        <span className="tnum">{formatUptime(reading?.uptime_ms ?? null)}</span>
       </Cell>
 
-      <Cell i={5} icon={<Power size={20} />} label="Pompa">
-        <div className="flex items-center gap-2.5">
-          {reading ? (
-            <Chip tone={reading.terkunci ? "danger" : reading.pompa ? "info" : "neutral"} dot>
-              {reading.terkunci ? "Terkunci" : reading.pompa ? "Menyala" : "Mati"}
-            </Chip>
-          ) : (
-            <span className="text-[1.05rem] font-semibold leading-none">—</span>
-          )}
-          <span className="text-xs text-muted">maks {settings.durasi_pompa ?? 5} detik</span>
-        </div>
+      <Cell label="Pompa" sub={`berhenti sendiri setelah ${settings.durasi_pompa ?? 5} detik`}>
+        {reading ? (
+          <Tag tone={reading.terkunci ? "danger" : reading.pompa ? "info" : "neutral"} dot>
+            {reading.terkunci ? "Terkunci" : reading.pompa ? "Menyala" : "Mati"}
+          </Tag>
+        ) : (
+          "—"
+        )}
       </Cell>
 
-      <Cell i={6} icon={<CalendarClock size={20} />} label="Pakan berikutnya">
-        <p className="tnum text-[1.05rem] font-semibold leading-none" style={{ opacity: stale ? 0.7 : 1 }}>
+      <Cell label="Pakan berikutnya" sub={until(next.time, next.tomorrow, now)}>
+        <span className="tnum" style={{ opacity: stale ? 0.7 : 1 }}>
           {next.time}
-          <span className="ml-2 text-xs font-normal text-muted">{until(next.time, next.tomorrow, now)}</span>
-        </p>
+        </span>
       </Cell>
-    </div>
+    </section>
   );
 }
