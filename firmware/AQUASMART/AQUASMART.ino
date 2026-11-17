@@ -217,6 +217,57 @@ void setPompa(bool nyala, bool manual) {
 // ==========================================
 // PAKAN
 // ==========================================
+// Posisi servo dalam mikrodetik lebar pulsa, bukan derajat, supaya posisi tutup
+// bisa digeser melewati batas 0 derajat. Dulu 0 derajat = 1000 us dan 90 derajat
+// = 1500 us; 1 derajat kira-kira 5,6 us. Tanduk servo dipasang supaya wadah
+// tertutup tepat di 1000 us.
+const int SERVO_TUTUP = 1000;
+const int SERVO_BUKA  = 1500;
+const int SERVO_MIN_US = 500;    // batas pengaman library, bukan posisi
+const int SERVO_MAX_US = 2500;
+
+// Servo ES08A diberi daya dari VIN, yang tegangannya sudah di bawah batas
+// servo itu. Lompatan langsung ke posisi tujuan menarik arus lonjakan yang
+// menjatuhkan VIN, dan servo lalu berayun liar sebelum diam. Bergerak ~2 derajat
+// tiap 15 ms (tutup -> buka sekitar 0,7 detik) menjaga arusnya tetap kecil.
+const int LANGKAH_SERVO = 11;    // us per langkah
+const unsigned long JEDA_LANGKAH_SERVO = 15UL;
+
+int posisiServo = SERVO_TUTUP;   // posisi terakhir yang dikirim ke servo
+int targetServo = SERVO_TUTUP;
+unsigned long waktuServoGerak = 0;
+
+void gerakkanServo(int posisi) {
+  targetServo = posisi;
+}
+
+// Selama ini true, pompa tidak boleh mulai: servo sedang memberi pakan atau
+// masih dalam perjalanan menutup.
+bool servoSibuk() {
+  return sedangMemberiPakan || posisiServo != targetServo;
+}
+
+// Dipanggil tiap putaran loop. Servo juga hanya diberi pulsa saat bergerak:
+// pulsa yang terus dikirim selagi diam ikut terganggu WiFi dan derau catu, dan
+// ES08A mengikutinya. Tanpa pulsa servo diam, ditahan gesekan roda giginya.
+void jalankanServo() {
+  if (posisiServo != targetServo) {
+    if (millis() - waktuServoGerak < JEDA_LANGKAH_SERVO) return;
+    posisiServo += constrain(targetServo - posisiServo, -LANGKAH_SERVO, LANGKAH_SERVO);
+    if (servoPakan.attached()) {
+      servoPakan.write(posisiServo);
+    } else {
+      servoPakan.attach(SERVO_PIN, SERVO_MIN_US, SERVO_MAX_US, posisiServo);
+    }
+    waktuServoGerak = millis();
+    return;
+  }
+  // Selama wadah terbuka servo tetap ditahan; selain itu dilepas begitu sampai.
+  if (!sedangMemberiPakan && servoPakan.attached() && millis() - waktuServoGerak >= 500UL) {
+    servoPakan.detach();
+  }
+}
+
 void beriPakan(const String &metode) {
   if (sedangMemberiPakan) {
     Serial.println("Pemberian pakan masih berlangsung.");
@@ -225,14 +276,28 @@ void beriPakan(const String &metode) {
   sedangMemberiPakan = true;
   metodePakan = metode;
   waktuMulaiPakan = millis();
-  servoPakan.write(90);
   Serial.println("Memberi pakan: " + metode);
 }
 
 void prosesPakan() {
   if (!sedangMemberiPakan) return;
+
+  // Servo dan pompa sama-sama menarik arus dari VIN, jadi tidak boleh jalan
+  // bersamaan: pakan menunggu pompa mati dulu.
+  if (pompaNyala) {
+    waktuMulaiPakan = millis();
+    return;
+  }
+  gerakkanServo(SERVO_BUKA);
+
+  // Durasi dihitung sejak wadah terbuka penuh, supaya jumlah pakan tidak
+  // berkurang karena servo kini membuka perlahan.
+  if (posisiServo != SERVO_BUKA) {
+    waktuMulaiPakan = millis();
+    return;
+  }
   if (millis() - waktuMulaiPakan >= (unsigned long)durasiBukaDetik * 1000UL) {
-    servoPakan.write(0);
+    gerakkanServo(SERVO_TUTUP);
     sedangMemberiPakan = false;
     catatEvent("feed_done", "Ikan telah diberi pakan (" + metodePakan + ")");
   }
@@ -322,7 +387,8 @@ void monitoringAir() {
       } else if (!pompaTerkunci && !pompaNyala) {
         jumlahBacaanRendah++;
         bool cooldownSelesai = !pernahMati || (millis() - waktuPompaMati >= COOLDOWN_POMPA);
-        if (jumlahBacaanRendah >= KONFIRMASI_MULAI && cooldownSelesai) {
+        // Pompa menunggu servo selesai, supaya keduanya tidak menarik arus bersamaan.
+        if (jumlahBacaanRendah >= KONFIRMASI_MULAI && cooldownSelesai && !servoSibuk()) {
           jumlahBacaanRendah = 0;
           jumlahBacaanAman = 0;
           setPompa(true, false);
@@ -530,6 +596,9 @@ void jalankanPerintah(JsonObjectConst cmd) {
       catatEvent("critical_water",
                  "Perintah pompa ditolak: air sudah " + String(levelAir) + "%.");
       Serial.println("[POMPA] perintah ditolak, air sudah penuh.");
+    } else if (on && servoSibuk()) {
+      catatEvent("info", "Perintah pompa ditolak: servo sedang memberi pakan. Coba lagi sebentar.");
+      Serial.println("[POMPA] perintah ditolak, servo sedang bergerak.");
     } else if (on) {
       pompaTerkunci = false;          // perintah manual membatalkan kunci
       setPompa(true, true);
@@ -715,10 +784,12 @@ void setup() {
   pinMode(ECHO_PIN, INPUT);
   digitalWrite(TRIG_PIN, LOW);
 
-  // Posisi awal ikut diberikan saat attach. attach(pin) saja langsung
-  // menggerakkan servo ke tengah (sama dengan write(90), posisi buka), sehingga
-  // wadah pakan terbuka sesaat setiap kali alat menyala.
-  servoPakan.attach(SERVO_PIN, DEFAULT_MIN_PULSE_WIDTH, DEFAULT_MAX_PULSE_WIDTH, 0);
+  // Posisi tutup ikut diberikan saat attach. attach(pin) saja langsung
+  // menggerakkan servo ke tengah (sama dengan posisi buka), sehingga wadah
+  // pakan terbuka sesaat setiap kali alat menyala. Posisi fisik servo saat boot
+  // tidak diketahui, jadi di sini tidak bisa bergerak perlahan.
+  servoPakan.attach(SERVO_PIN, SERVO_MIN_US, SERVO_MAX_US, SERVO_TUTUP);
+  waktuServoGerak = millis();
 
   Rtc.Begin();
   Rtc.SetIsWriteProtected(false);
@@ -775,6 +846,7 @@ void loop() {
   monitoringPakan();
   cekJadwalRTC();
   prosesPakan();
+  jalankanServo();
 
   if (millis() - waktuKirimTerakhir >= INTERVAL_KIRIM) {
     waktuKirimTerakhir = millis();
