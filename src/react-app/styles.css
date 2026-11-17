@@ -1,0 +1,495 @@
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+/* The theme is a class, not a media query: the operator toggles it during a demo
+   on a screen nobody has seen yet. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-brand: var(--brand);
+  --color-accent: var(--accent);
+  --color-aqua: var(--aqua);
+  --color-feed: var(--feed);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+}
+
+/* Dark is the primary theme. Light is the same instrument in daylight: the same
+   hues, re-weighted for contrast on a pale ground rather than simply inverted. */
+:root {
+  --bg: #eaf1f8;
+  --surface: rgb(255 255 255 / 0.82);
+  --raised: rgb(5 67 118 / 0.045);
+  --line: rgb(5 67 118 / 0.11);
+  --line-strong: rgb(5 67 118 / 0.22);
+  --fg: #0a1c30;
+  --muted: #4d6279;
+  --faint: #8396ab;
+
+  --brand: #054376;
+  --accent: #0b73d9;
+  --accent-hi: #2b95ff;
+  --aqua: #0791b3;
+  --feed: #c77a10;
+  --ok: #0c9a68;
+  --warn: #b8780f;
+  --danger: #d23552;
+
+  --glow-a: rgb(43 149 255 / 0.22);
+  --glow-b: rgb(7 145 179 / 0.12);
+  --sheen: rgb(255 255 255 / 0.7);
+  --card-shadow: 0 1px 2px rgb(5 67 118 / 0.06), 0 18px 40px -22px rgb(5 67 118 / 0.28);
+  --pipe: #b9c9da;
+  --pipe-inner: #e7eef6;
+  --glass: rgb(255 255 255 / 0.55);
+  --glass-edge: rgb(5 67 118 / 0.3);
+  --water-hi: #35b8ff;
+  --water-lo: #0a5cb8;
+  --halo: rgb(255 255 255 / 0.9);
+}
+
+.dark {
+  --bg: #050c18;
+  --surface: rgb(12 26 46 / 0.72);
+  --raised: rgb(160 200 245 / 0.055);
+  --line: rgb(148 190 235 / 0.12);
+  --line-strong: rgb(148 190 235 / 0.24);
+  --fg: #eaf2fc;
+  --muted: #94a9c3;
+  --faint: #5d7692;
+
+  --brand: #054376;
+  --accent: #3da2ff;
+  --accent-hi: #7cc2ff;
+  --aqua: #35d2ee;
+  --feed: #f5a524;
+  --ok: #35d39b;
+  --warn: #fbbf24;
+  --danger: #fb6f88;
+
+  --glow-a: rgb(5 67 118 / 0.75);
+  --glow-b: rgb(53 210 238 / 0.08);
+  --sheen: rgb(180 215 255 / 0.07);
+  --card-shadow: 0 1px 0 rgb(180 215 255 / 0.05) inset, 0 28px 60px -28px rgb(0 0 0 / 0.75);
+  --pipe: #1e3552;
+  --pipe-inner: #0a1829;
+  --glass: rgb(160 200 245 / 0.045);
+  --glass-edge: rgb(160 205 255 / 0.32);
+  --water-hi: #1f9bff;
+  --water-lo: #063a78;
+  --halo: rgb(5 12 24 / 0.85);
+}
+
+@layer base {
+  html {
+    background: var(--bg);
+    color-scheme: light;
+    scroll-behavior: smooth;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01" 1, "cv11" 1;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* One atmosphere for the whole page: the project's own navy pooling at the top
+     like light through water, and a faint aqua return at the bottom. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(60rem 38rem at 12% -8%, var(--glow-a), transparent 70%),
+      radial-gradient(48rem 30rem at 100% 0%, var(--glow-b), transparent 70%),
+      radial-gradient(50rem 30rem at 50% 118%, var(--glow-b), transparent 70%);
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  :where(a, button, input, select, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--accent-hi);
+    outline-offset: 2px;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+
+  :where(.tnum) {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+}
+
+@layer components {
+  .card {
+    position: relative;
+    border-radius: 1.5rem;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    box-shadow: var(--card-shadow);
+    -webkit-backdrop-filter: blur(20px) saturate(1.25);
+    backdrop-filter: blur(20px) saturate(1.25);
+  }
+  .card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(180deg, var(--sheen), transparent 42%);
+  }
+  .card > * {
+    position: relative;
+  }
+
+  .eyebrow {
+    font-size: 0.6875rem;
+    line-height: 1;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Status chips: tone is carried by colour and by the words, never colour alone. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    padding: 0.3rem 0.7rem;
+    font-size: 0.75rem;
+    line-height: 1;
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--muted);
+    background: var(--raised);
+  }
+  .chip[data-tone="ok"],
+  .chip[data-tone="warn"],
+  .chip[data-tone="danger"],
+  .chip[data-tone="info"] {
+    --tone: var(--ok);
+    color: var(--tone);
+    border-color: color-mix(in oklab, var(--tone) 32%, transparent);
+    background: color-mix(in oklab, var(--tone) 13%, transparent);
+  }
+  .chip[data-tone="warn"] {
+    --tone: var(--warn);
+  }
+  .chip[data-tone="danger"] {
+    --tone: var(--danger);
+  }
+  .chip[data-tone="info"] {
+    --tone: var(--accent);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    border-radius: 1rem;
+    border: 1px solid var(--line-strong);
+    padding: 0.8rem 1.15rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--fg);
+    background: var(--raised);
+    transition:
+      transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 160ms,
+      border-color 160ms,
+      box-shadow 160ms,
+      opacity 160ms;
+  }
+  .btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: color-mix(in oklab, var(--accent) 12%, transparent);
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.985);
+  }
+  .btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+  /* A command in flight is not a dead control: it keeps its colour and shows a spinner. */
+  .btn:disabled[data-waiting="true"] {
+    opacity: 0.9;
+    cursor: progress;
+  }
+  .btn-primary {
+    border-color: color-mix(in oklab, var(--accent-hi) 55%, transparent);
+    color: #fff;
+    background: linear-gradient(135deg, #1d8cf7 0%, #0b5fc4 55%, #054376 100%);
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / 0.28) inset,
+      0 14px 30px -12px rgb(11 115 217 / 0.75);
+  }
+  .btn-primary:hover:not(:disabled) {
+    border-color: var(--accent-hi);
+    background: linear-gradient(135deg, #3a9dff 0%, #1170da 55%, #07508f 100%);
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / 0.32) inset,
+      0 18px 36px -12px rgb(11 115 217 / 0.9);
+  }
+
+  .field {
+    display: flex;
+    align-items: center;
+    border-radius: 0.875rem;
+    border: 1px solid var(--line-strong);
+    background: var(--raised);
+    transition:
+      border-color 150ms,
+      box-shadow 150ms;
+  }
+  .field:hover {
+    border-color: color-mix(in oklab, var(--accent) 50%, var(--line-strong));
+  }
+  .field:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 24%, transparent);
+  }
+  .field[data-invalid="true"] {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--danger) 20%, transparent);
+  }
+  .field input {
+    width: 100%;
+    min-width: 0;
+    background: transparent;
+    padding: 0.7rem 0.85rem;
+    font-family: var(--font-mono);
+    font-size: 0.9375rem;
+    color: var(--fg);
+    outline: none;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .skeleton {
+    border-radius: 0.5rem;
+    background: linear-gradient(
+      100deg,
+      var(--raised) 30%,
+      color-mix(in oklab, var(--fg) 10%, transparent) 50%,
+      var(--raised) 70%
+    );
+    background-size: 220% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+}
+
+/* ---- motion ---- */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+.rise {
+  animation: rise-in 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+}
+.slide-in {
+  animation: slide-in 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  60% {
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.pop {
+  animation: pop 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+@keyframes wave-drift {
+  to {
+    transform: translateX(-120px);
+  }
+}
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(-3px);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+@keyframes swim {
+  0% {
+    transform: translateX(-26px) scaleX(1);
+  }
+  49.9% {
+    transform: translateX(26px) scaleX(1);
+  }
+  50% {
+    transform: translateX(26px) scaleX(-1);
+  }
+  99.9% {
+    transform: translateX(-26px) scaleX(-1);
+  }
+  100% {
+    transform: translateX(-26px) scaleX(1);
+  }
+}
+@keyframes bubble {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateY(-34px) scale(1);
+    opacity: 0;
+  }
+}
+@keyframes drip {
+  to {
+    stroke-dashoffset: -22;
+  }
+}
+@keyframes ripple {
+  from {
+    transform: scale(0.35);
+    opacity: 0.75;
+  }
+  to {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+@keyframes beacon {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.vessel-wave {
+  animation: wave-drift 7s linear infinite;
+}
+.vessel-wave-back {
+  animation: wave-drift 11s linear infinite reverse;
+}
+.vessel-fish {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: swim 16s ease-in-out infinite;
+}
+.vessel-fish-body {
+  animation: bob 4.5s ease-in-out infinite;
+}
+.vessel-bubble {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bubble 2.4s ease-in infinite;
+}
+.vessel-stream {
+  animation: drip 0.7s linear infinite;
+}
+.vessel-ripple {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ripple 1.6s ease-out infinite;
+}
+.beacon {
+  animation: beacon 2s ease-out infinite;
+}
+
+/* A device that has gone quiet should not look alive: its tank stops moving. */
+.is-stale .vessel-wave,
+.is-stale .vessel-wave-back,
+.is-stale .vessel-fish,
+.is-stale .vessel-fish-body,
+.is-stale .vessel-bubble,
+.is-stale .vessel-stream,
+.is-stale .vessel-ripple {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
