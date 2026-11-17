@@ -22,7 +22,6 @@
 #include <RtcDS1302.h>
 
 #include "secrets.h"   // WIFI_SSID, WIFI_PASS, SERVER_HOST, DEVICE_KEY
-#include "ca_roots.h"  // AKAR_CA
 
 // ==========================================
 // PEMETAAN PIN (TIDAK DIUBAH)
@@ -469,16 +468,9 @@ bool jamMasukAkal() {
   RtcDateTime t = Rtc.GetDateTime();
   return t.IsValid() && t.Year() >= 2025 && t.Year() <= 2035;
 }
-
-// Pemeriksaan sertifikat butuh jam yang benar. Jam yang baru disetel ulang ke
-// waktu kompilasi tahunnya masuk akal tetapi tanggalnya salah, jadi dianggap
-// belum tepercaya sampai server menyelaraskannya sekali.
-bool jamTepercaya = false;
-
 void selaraskanJam(uint32_t epochWib) {
   if (epochWib < EPOCH_2000) return;          // balasan tanpa waktu; abaikan
   RtcDateTime seharusnya(epochWib - EPOCH_2000);
-  jamTepercaya = true;                         // setelah baris ini RTC pasti benar
 
   long selisih = (long)seharusnya.TotalSeconds() - (long)Rtc.GetDateTime().TotalSeconds();
   if (selisih > -30 && selisih < 30) return;  // hanyut wajar, biarkan
@@ -619,18 +611,12 @@ void kirimTelemetri() {
   serializeJson(body, payload);
 
   WiFiClientSecure client;
-  // DEVICE_KEY ikut terkirim, dan alat ini memakai WiFi publik, jadi sertifikat
-  // server diperiksa. Satu-satunya pengecualian adalah saat jam belum tepercaya:
-  // tanpa jam, pemeriksaan pasti gagal dan alat tidak akan pernah bisa
-  // mengambil waktu dari server. Balasan pertama memperbaiki jamnya.
-  static BearSSL::X509List akar(AKAR_CA);
-  if (jamTepercaya) {
-    client.setTrustAnchors(&akar);
-    // RTC menyimpan WIB; BearSSL butuh waktu Unix (UTC).
-    client.setX509Time(Rtc.GetDateTime().TotalSeconds() + EPOCH_2000 - 7UL * 3600UL);
-  } else {
-    client.setInsecure();
-  }
+  // Sertifikat sengaja tidak diperiksa. Sudah dicoba: daftar akar CA memakan
+  // heap yang dibutuhkan buffer TLS 16 KB, dan pemeriksaannya butuh jam,
+  // padahal DS1302 terbaca meleset bertahun-tahun saat pompa berputar, sehingga
+  // alat bisa terkunci offline. Risiko yang tersisa hanya pembacaan palsu dari
+  // orang di WiFi yang sama; kendali alat memang terbuka lewat dashboard.
+  client.setInsecure();
 
   // Buffer terima harus memuat satu rekaman TLS utuh. Angka 512 hanya aman bila
   // server mau menegosiasikan fragmen kecil, dan Cloudflare tidak mau, sehingga
@@ -667,9 +653,7 @@ void kirimTelemetri() {
         jalankanPerintah(cmd);
       }
       if (!pernahTerkirim) {
-        Serial.println(jamTepercaya
-                         ? "[HTTP] tersambung ke server (sertifikat diperiksa), telemetri terkirim."
-                         : "[HTTP] tersambung ke server (jam belum tepercaya), telemetri terkirim.");
+        Serial.println("[HTTP] tersambung ke server, telemetri terkirim.");
         pernahTerkirim = true;
       }
     }
@@ -681,6 +665,10 @@ void kirimTelemetri() {
     Serial.print(code);
     Serial.print(", heap ");
     Serial.print(ESP.getFreeHeap());
+    Serial.print(", blok ");
+    Serial.print(ESP.getMaxFreeBlockSize());   // buffer 16 KB butuh satu blok utuh
+    Serial.print(", ssl ");
+    Serial.print(client.getLastSSLError());
     Serial.print(", rssi ");
     Serial.println(WiFi.RSSI());
   }
@@ -751,7 +739,6 @@ void setup() {
   if (rtcDisetelUlang) {
     Serial.println("[RTC] PERINGATAN: jam tidak sah, disetel ke waktu kompilasi.");
   }
-  jamTepercaya = !rtcDisetelUlang && jamMasukAkal();
   if (!jamMasukAkal()) {
     Serial.println("[RTC] Tahunnya di luar akal. Jadwal otomatis ditahan sampai");
     Serial.println("[RTC] server menyelaraskan jam. Periksa baterai RTC.");
