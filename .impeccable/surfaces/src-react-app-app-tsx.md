@@ -20,11 +20,13 @@ physical vessels they measure, so the state reads before any number does, and th
 sit beside them as the exact record. It replaces the first "Kartu Kendali" direction
 (ruled paper form, rotated SAH stamps), which was rejected as heavy and dated.
 
-OWN-WORLD: Deep water at night. The project's navy (#054376) pools at the top of a near-black
-blue ground like light through water; surfaces are frosted glass with hairline edges. Blue
-is the live-data hue, amber is feed, red is reserved for exceptions. Light mode is the same
+OWN-WORLD: Deep water at night, kept restrained. One neutral near-black ground with the project's
+navy (#054376) pooled once at the top-left; flat hairline cards with no blur, sheen or shadow;
+colour spent only on data (water blue, feed amber) and exceptions (red). The single loud control
+is the primary button, plain ink on ground, never a gradient or glow. Labels are sentence case,
+headings carry no icon tile, status is a small tag rather than a pill. Light mode is the same
 instrument in daylight, re-weighted for contrast rather than inverted. Geist for text, Geist
-Mono for readouts, tabular figures everywhere a quantity is read.
+Mono for readouts, tabular figures wherever a quantity is read.
 
 HONESTY RULES (carried over from PRODUCT.md, expressed in the UI):
 - An offline device freezes and desaturates its vessels and says "dibekukan pada pembacaan
@@ -35,15 +37,14 @@ HONESTY RULES (carried over from PRODUCT.md, expressed in the UI):
   sensor resolves about 20%. Durations are labelled "disetel", never as measured.
 - No temperature, no invented metrics.
 
-FIRST VIEWPORT: Frosted top bar (logo mark, wordmark, device presence pill, theme toggle);
-a one-sentence verdict on the tank (baik, pakan hampir habis, pompa terkunci, tidak
-terhubung) with flag chips; two large vessel cards (animated water tank with betta, pump
-inlet, threshold and target flags; feed hopper with ultrasonic beam and servo gate) each
-carrying the 100px+ figure and its raw sensor readout; the Kendali band beneath.
-
-Below: vitals (WiFi grade, uptime, pump, next feeding with countdown), history chart with
-toggleable series and pump-run bands, activity timeline, and a settings studio whose floating
-save bar appears only while edits are unsaved.
+LAYOUT: Edge to edge up to 2200 px. Top bar (logo mark, device presence, theme toggle); a verdict
+line (baik, pakan hampir habis, pompa terkunci, tidak terhubung) with flag chips; two vessel
+cards (animated water tank with betta, pump inlet, threshold and target flags; feed hopper with
+ultrasonic beam and servo gate), each with the 100px+ figure, raw readout and a sparkline of the
+last hour. From 1600 px the Kendali panel sits beside the vessels; below that it is a band.
+Then one vitals strip (WiFi grade, uptime, pump, next feeding with countdown), the history chart
+stretched to the height of the activity list, and a settings form with a label column beside
+its fields and a floating save bar that appears only while edits are unsaved.
 
 ## Unresolved
 
