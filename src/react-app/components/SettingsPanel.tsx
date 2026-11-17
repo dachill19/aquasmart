@@ -59,12 +59,21 @@ export function SettingsPanel({ settings, onSaved }: Props) {
   const [draft, setDraft] = useState<Draft>(() => draftFrom(settings));
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState<string | null>(null);
+  // True from the first keystroke until a successful save. Every poll hands over
+  // a fresh settings object, so without this flag the form was overwritten with
+  // the stored values every few seconds while the user was still typing.
+  const [dirty, setDirty] = useState(false);
 
   // Settings can change from another browser; follow the server unless the user
-  // is mid-edit.
+  // has unsaved edits.
   useEffect(() => {
-    if (state === "idle") setDraft(draftFrom(settings));
-  }, [settings, state]);
+    if (!dirty) setDraft(draftFrom(settings));
+  }, [settings, dirty]);
+
+  function edit(patch: Partial<Draft>) {
+    setDraft((d) => ({ ...d, ...patch }));
+    setDirty(true);
+  }
 
   async function submit() {
     setError(null);
@@ -95,6 +104,7 @@ export function SettingsPanel({ settings, onSaved }: Props) {
     setState("saving");
     try {
       await sendCommand("settings", payload);
+      setDirty(false);
       setState("saved");
       onSaved();
       setTimeout(() => setState("idle"), 2500);
@@ -128,7 +138,7 @@ export function SettingsPanel({ settings, onSaved }: Props) {
             <input
               type="time"
               value={draft.pagi}
-              onChange={(e) => setDraft({ ...draft, pagi: e.target.value })}
+              onChange={(e) => edit({ pagi: e.target.value })}
               className={field}
             />
           </label>
@@ -138,7 +148,7 @@ export function SettingsPanel({ settings, onSaved }: Props) {
             <input
               type="time"
               value={draft.sore}
-              onChange={(e) => setDraft({ ...draft, sore: e.target.value })}
+              onChange={(e) => edit({ sore: e.target.value })}
               className={field}
             />
           </label>
@@ -165,7 +175,7 @@ export function SettingsPanel({ settings, onSaved }: Props) {
                   min={f.min}
                   max={f.max}
                   value={draft[f.key]}
-                  onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })}
+                  onChange={(e) => edit({ [f.key]: e.target.value })}
                   className={field}
                 />
               </label>

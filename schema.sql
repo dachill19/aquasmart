@@ -49,7 +49,6 @@ CREATE INDEX idx_events_ts ON events (ts DESC);
 CREATE UNIQUE INDEX idx_events_ext ON events (ext_id);
 
 -- Settings live here instead of in device RAM, so a reboot no longer loses them.
--- This is fix #5 in FIRMWARE_FIXES.md.
 DROP TABLE IF EXISTS settings;
 CREATE TABLE settings (
   key   TEXT PRIMARY KEY,

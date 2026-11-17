@@ -14,6 +14,7 @@ type Entry = {
   durationSec: number | null;
   ackedAt: number | null;
   pending: boolean;
+  expired: boolean;
   critical: boolean;
 };
 
@@ -58,7 +59,8 @@ export function RecordTable({
       durationSec:
         c.type === "feed" ? (settings.durasi_pakan ?? null) : c.type === "pump" ? (settings.durasi_pompa ?? null) : null,
       ackedAt: c.acked_at,
-      pending: c.acked_at === null,
+      pending: c.acked_at === null && !c.expired,
+      expired: Boolean(c.expired),
       critical: false,
     })),
     ...events.map((e) => ({
@@ -68,11 +70,12 @@ export function RecordTable({
       durationSec: null,
       ackedAt: e.ts,
       pending: false,
+      expired: false,
       critical: e.kind.startsWith("critical"),
     })),
   ].sort((a, b) => b.ts - a.ts);
 
-  const stampedNow = new Set(entries.filter((e) => !e.pending).map((e) => e.key));
+  const stampedNow = new Set(entries.filter((e) => !e.pending && !e.expired).map((e) => e.key));
   if (settled.current === null) {
     // First paint: everything already on the record counts as filed long ago.
     settled.current = stampedNow;
@@ -142,6 +145,8 @@ export function RecordTable({
                     <td className="w-[132px] py-3 text-right align-top sm:w-44 sm:align-middle">
                       {entry.pending ? (
                         <span className="stamp-pending">MENUNGGU ALAT</span>
+                      ) : entry.expired ? (
+                        <span className="stamp-pending">KEDALUWARSA</span>
                       ) : (
                         <span
                           className={`stamp whitespace-nowrap${

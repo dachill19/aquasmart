@@ -22,6 +22,7 @@
 #include <RtcDS1302.h>
 
 #include "secrets.h"   // WIFI_SSID, WIFI_PASS, SERVER_HOST, DEVICE_KEY
+#include "ca_roots.h"  // AKAR_CA
 
 // ==========================================
 // PEMETAAN PIN (TIDAK DIUBAH)
@@ -106,6 +107,11 @@ unsigned long waktuMulaiPompa = 0;
 unsigned long waktuPompaMati = 0;
 int jumlahBacaanRendah = 0;
 int jumlahBacaanAman = 0;   // pasangan simetris: butuh konfirmasi juga untuk berhenti
+// Keputusan kunci ditunda sampai pembacaan pertama setelah pompa mati. Selama
+// pompa berputar ADC melonjak (terukur 12 -> ~36%), jadi pembacaan terakhir
+// saat pompa jalan tidak bisa dipakai: dulu itulah sebabnya pompa kadang
+// terkunci dan kadang tidak untuk keadaan air yang sama.
+bool cekKunciSetelahPompa = false;
 
 const unsigned long INTERVAL_AIR_NORMAL = 10000UL;
 const unsigned long INTERVAL_AIR_POMPA  = 500UL;
@@ -201,6 +207,7 @@ void setPompa(bool nyala, bool manual) {
 
   if (nyala) {
     waktuMulaiPompa = millis();
+    cekKunciSetelahPompa = false;   // putaran baru membatalkan pemeriksaan lama
   } else {
     waktuPompaMati = millis();
     pernahMati = true;
@@ -291,6 +298,24 @@ void monitoringAir() {
       // memakai batasAir, sehingga pompa berhenti tepat saat air melewati
       // garis yang menyalakannya: tangki tidak pernah terisi, hanya didorong
       // balik melewati garis lalu turun lagi.
+      // Sensor harus sudah dinyalakan setelah pompa mati, supaya tidak ada
+      // sampel yang diambil selagi motor masih berputar.
+      if (cekKunciSetelahPompa && !pompaNyala &&
+          (long)(waktuSensorAktif - waktuPompaMati) >= 0) {
+        cekKunciSetelahPompa = false;
+        if (levelAir < batasAir) {
+          pompaTerkunci = true;
+          jumlahBacaanRendah = 0;
+          if (!notifPompaTerkirim) {
+            catatEvent("critical_water",
+                       "Air masih " + String(levelAir) + "% setelah pompa menyala " +
+                       String(durasiPompaDetik) + " detik. Pompa dikunci.");
+            notifPompaTerkirim = true;
+          }
+          Serial.println("-> Air tidak naik setelah pompa. Pompa TERKUNCI.");
+        }
+      }
+
       if (levelAir >= batasAir) {
         jumlahBacaanRendah = 0;
         pompaTerkunci = false;
@@ -338,15 +363,8 @@ void kontrolPompa() {
   bool tadiManual = pompaManual;
   setPompa(false, false);
 
-  if (!tadiManual && levelAir >= 0 && levelAir < batasAir) {
-    pompaTerkunci = true;
-    if (!notifPompaTerkirim) {
-      catatEvent("critical_water",
-                 "Air masih di bawah " + String(batasAir) + "% setelah pompa menyala " +
-                 String(durasiPompaDetik) + " detik. Pompa dimatikan.");
-      notifPompaTerkirim = true;
-    }
-  }
+  // Kunci diputuskan di monitoringAir dari pembacaan bersih berikutnya.
+  if (!tadiManual) cekKunciSetelahPompa = true;
 }
 
 // ==========================================
@@ -452,9 +470,15 @@ bool jamMasukAkal() {
   return t.IsValid() && t.Year() >= 2025 && t.Year() <= 2035;
 }
 
+// Pemeriksaan sertifikat butuh jam yang benar. Jam yang baru disetel ulang ke
+// waktu kompilasi tahunnya masuk akal tetapi tanggalnya salah, jadi dianggap
+// belum tepercaya sampai server menyelaraskannya sekali.
+bool jamTepercaya = false;
+
 void selaraskanJam(uint32_t epochWib) {
   if (epochWib < EPOCH_2000) return;          // balasan tanpa waktu; abaikan
   RtcDateTime seharusnya(epochWib - EPOCH_2000);
+  jamTepercaya = true;                         // setelah baris ini RTC pasti benar
 
   long selisih = (long)seharusnya.TotalSeconds() - (long)Rtc.GetDateTime().TotalSeconds();
   if (selisih > -30 && selisih < 30) return;  // hanyut wajar, biarkan
@@ -595,8 +619,18 @@ void kirimTelemetri() {
   serializeJson(body, payload);
 
   WiFiClientSecure client;
-  client.setInsecure();        // sertifikat tidak diperiksa: ESP8266 tidak menyimpan
-                               // akar CA, dan isi telemetrinya bukan rahasia
+  // DEVICE_KEY ikut terkirim, dan alat ini memakai WiFi publik, jadi sertifikat
+  // server diperiksa. Satu-satunya pengecualian adalah saat jam belum tepercaya:
+  // tanpa jam, pemeriksaan pasti gagal dan alat tidak akan pernah bisa
+  // mengambil waktu dari server. Balasan pertama memperbaiki jamnya.
+  static BearSSL::X509List akar(AKAR_CA);
+  if (jamTepercaya) {
+    client.setTrustAnchors(&akar);
+    // RTC menyimpan WIB; BearSSL butuh waktu Unix (UTC).
+    client.setX509Time(Rtc.GetDateTime().TotalSeconds() + EPOCH_2000 - 7UL * 3600UL);
+  } else {
+    client.setInsecure();
+  }
 
   // Buffer terima harus memuat satu rekaman TLS utuh. Angka 512 hanya aman bila
   // server mau menegosiasikan fragmen kecil, dan Cloudflare tidak mau, sehingga
@@ -633,7 +667,9 @@ void kirimTelemetri() {
         jalankanPerintah(cmd);
       }
       if (!pernahTerkirim) {
-        Serial.println("[HTTP] tersambung ke server, telemetri terkirim.");
+        Serial.println(jamTepercaya
+                         ? "[HTTP] tersambung ke server (sertifikat diperiksa), telemetri terkirim."
+                         : "[HTTP] tersambung ke server (jam belum tepercaya), telemetri terkirim.");
         pernahTerkirim = true;
       }
     }
@@ -666,7 +702,9 @@ void jagaWifi() {
   if (WiFi.status() == WL_CONNECTED) return;
   if (millis() - terakhirCoba < 10000UL) return;
   terakhirCoba = millis();
-  Serial.println("[WIFI] menyambung ulang...");
+  // Kode status membedakan SSID hilang (1), gagal (4), sandi salah (6), dan putus (7).
+  Serial.print("[WIFI] menyambung ulang, status ");
+  Serial.println(WiFi.status());
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 }
 
@@ -713,6 +751,7 @@ void setup() {
   if (rtcDisetelUlang) {
     Serial.println("[RTC] PERINGATAN: jam tidak sah, disetel ke waktu kompilasi.");
   }
+  jamTepercaya = !rtcDisetelUlang && jamMasukAkal();
   if (!jamMasukAkal()) {
     Serial.println("[RTC] Tahunnya di luar akal. Jadwal otomatis ditahan sampai");
     Serial.println("[RTC] server menyelaraskan jam. Periksa baterai RTC.");

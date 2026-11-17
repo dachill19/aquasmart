@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import {
   CartesianGrid,
   Line,
@@ -32,19 +31,16 @@ export function HistoryChart({ points, thresholdAir, targetAir }: Props) {
    * A run ends at the first reading that reports the pump off, so a run of a
    * single reading still has width instead of collapsing to nothing.
    */
-  const pumpRuns = useMemo(() => {
-    const runs: Array<[string, string]> = [];
-    let start: number | null = null;
-    data.forEach((p, i) => {
-      if (p.pompa && start === null) start = i;
-      if (!p.pompa && start !== null) {
-        runs.push([data[start].label, p.label]);
-        start = null;
-      }
-    });
-    if (start !== null) runs.push([data[start].label, data[data.length - 1].label]);
-    return runs;
-  }, [data]);
+  const pumpRuns: Array<[string, string]> = [];
+  let start: number | null = null;
+  data.forEach((p, i) => {
+    if (p.pompa && start === null) start = i;
+    if (!p.pompa && start !== null) {
+      pumpRuns.push([data[start].label, p.label]);
+      start = null;
+    }
+  });
+  if (start !== null) pumpRuns.push([data[start].label, data[data.length - 1].label]);
 
   return (
     <section className="border-t border-[var(--rule)]">

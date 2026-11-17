@@ -27,9 +27,11 @@ function nextFeeding(settings: Record<string, number>, now: number): string {
   const d = new Date(now);
   const minutesNow = d.getHours() * 60 + d.getMinutes();
   const asMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
-  if (minutesNow < asMinutes(pagi)) return pagi;
-  if (minutesNow < asMinutes(sore)) return sore;
-  return `${pagi} besok`;
+  // "HH:MM" sorts as text, so this also holds when the evening slot is set earlier than the morning one.
+  const [first, second] = [pagi, sore].sort();
+  if (minutesNow < asMinutes(first)) return first;
+  if (minutesNow < asMinutes(second)) return second;
+  return `${first} besok`;
 }
 
 export default function App() {
@@ -56,7 +58,7 @@ export default function App() {
   const settings = latest?.settings ?? {};
   const commands = latest?.commands ?? [];
   const pendingTypes = useMemo(
-    () => new Set(commands.filter((c) => c.acked_at === null).map((c) => c.type)),
+    () => new Set(commands.filter((c) => c.acked_at === null && !c.expired).map((c) => c.type)),
     [commands]
   );
 
@@ -71,6 +73,7 @@ export default function App() {
     const newest = commands[0];
     if (!newest) return "";
     const label = COMMAND_LABEL[newest.type] ?? newest.type;
+    if (newest.expired) return `${label} kedaluwarsa, alat tidak mengambilnya dalam 10 menit.`;
     return newest.acked_at === null
       ? `${label} menunggu diambil alat.`
       : `${label} disahkan alat pukul ${formatClock(newest.acked_at)}.`;

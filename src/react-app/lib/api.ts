@@ -1,32 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export type Reading = {
-  id: number;
-  ts: number;
-  level_air: number | null;
-  raw_water: number | null;
-  stok_pakan: number | null;
-  jarak_pakan: number | null;
-  pompa: number;
-  terkunci: number;
-  status_air: string | null;
-  status_pakan: string | null;
-  rssi: number | null;
-  uptime_ms: number | null;
-};
-
-export type EventRow = { id: number; ts: number; kind: string; message: string };
-
-export type CommandRow = {
-  id: number;
-  ts: number;
-  type: string;
-  payload: string | null;
-  sent_at: number | null;
-  acked_at: number | null;
-};
-
-export type Settings = Record<string, number>;
+// The worker owns these shapes; importing them keeps both sides of the API in step.
+import type { CommandRow, EventRow, Reading, Settings } from "../../worker/index";
+export type { CommandRow, EventRow, Reading, Settings };
 
 export type Latest = {
   reading: Reading | null;

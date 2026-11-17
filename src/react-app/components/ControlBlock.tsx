@@ -70,7 +70,8 @@ export function ControlBlock({ settings, pumpOn, locked, pendingTypes, onSent }:
         {actions.map((action) => {
           const Icon = action.icon;
           const waiting = pendingTypes.has(action.key);
-          const disabled = busy !== null;
+          // Unlocking a pump that is not locked only queues a command that does nothing.
+          const disabled = busy !== null || (action.key === "unlock" && !locked);
           return (
             <button
               key={action.key}

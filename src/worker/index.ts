@@ -7,7 +7,7 @@
  * interval, which the dashboard states rather than hides.
  */
 import { Hono } from "hono";
-import { kirimSemua, pesanEvent, tanganiWebhook } from "./telegram";
+import { kirimSemua, pesanEvent, tanganiWebhook } from "./telegram.ts";
 
 type Bindings = {
   DB: D1Database;
@@ -42,7 +42,19 @@ export type CommandRow = {
   payload: string | null;
   sent_at: number | null;
   acked_at: number | null;
+  /** 1 when the device never collected it in time; it will never run. */
+  expired: number;
 };
+
+/**
+ * A command the device has not collected within this window is never handed
+ * out. Without it, a feed pressed while the device was offline ran the moment
+ * it reconnected, hours later and on top of the scheduled feeding.
+ */
+const COMMAND_TTL_MS = 10 * 60_000;
+
+/** Raw readings are kept a week; at one per 5 s the table otherwise grows ~17k rows a day. */
+const READINGS_KEEP_MS = 7 * 24 * 3600_000;
 export type Settings = Record<string, number>;
 
 /** Settings the dashboard may change, with the range each one accepts. */
@@ -147,6 +159,12 @@ app.post("/api/telemetry", async (c) => {
     )
     .run();
 
+  // An indexed delete of the few rows that just aged out; done after answering
+  // so the device does not wait on it.
+  c.executionCtx.waitUntil(
+    db.prepare("DELETE FROM readings WHERE ts < ?").bind(now - READINGS_KEEP_MS).run()
+  );
+
   // Events the firmware raised locally, so notifications survive leaving Blynk.
   //
   // Delivery is at-least-once: when a POST reaches here but its response is
@@ -196,7 +214,10 @@ app.post("/api/telemetry", async (c) => {
   // Hand back what is still outstanding. A command stays pending until it is
   // acked, so a dropped response just means it is offered again next cycle.
   const { results: pending } = await db
-    .prepare("SELECT id, type, payload FROM commands WHERE acked_at IS NULL ORDER BY id LIMIT 10")
+    .prepare(
+      "SELECT id, type, payload FROM commands WHERE acked_at IS NULL AND ts >= ? ORDER BY id LIMIT 10"
+    )
+    .bind(now - COMMAND_TTL_MS)
     .all<{ id: number; type: string; payload: string | null }>();
 
   if (pending.length) {
@@ -310,7 +331,12 @@ app.get("/api/latest", async (c) => {
     .all<EventRow>();
 
   const { results: commands } = await db
-    .prepare("SELECT id, ts, type, payload, sent_at, acked_at FROM commands ORDER BY id DESC LIMIT 12")
+    .prepare(
+      `SELECT id, ts, type, payload, sent_at, acked_at,
+              (acked_at IS NULL AND ts < ?) AS expired
+         FROM commands ORDER BY id DESC LIMIT 12`
+    )
+    .bind(Date.now() - COMMAND_TTL_MS)
     .all<CommandRow>();
 
   return c.json({
