@@ -13,8 +13,11 @@ const dayClock = new Intl.DateTimeFormat("id-ID", {
   hour12: false,
 });
 
-export const formatClock = (ts: number) => clock.format(new Date(ts));
-export const formatDayClock = (ts: number) => dayClock.format(new Date(ts));
+/** id-ID writes 21.04.05; a colon reads as a clock on a dashboard and cannot be mistaken for a date. */
+const colon = (text: string) => text.replace(/(\d)\.(\d)/g, "$1:$2");
+
+export const formatClock = (ts: number) => colon(clock.format(new Date(ts)));
+export const formatDayClock = (ts: number) => colon(dayClock.format(new Date(ts)));
 
 /** Indonesian decimal comma, because every figure on this screen is read aloud. */
 export function formatNumber(value: number, digits = 0): string {
@@ -65,3 +68,30 @@ export const COMMAND_LABEL: Record<string, string> = {
   unlock: "Buka kunci pompa",
   settings: "Ubah setelan",
 };
+
+const shortClock = new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false });
+export const formatShortClock = (ts: number) => colon(shortClock.format(new Date(ts)));
+
+/** Which scheduled feeding comes next, read off the device's own settings. */
+export function nextFeeding(settings: Record<string, number>, now: number): { time: string; tomorrow: boolean } {
+  const pagi = toTimeValue(settings.jam_pagi, settings.menit_pagi);
+  const sore = toTimeValue(settings.jam_sore, settings.menit_sore);
+  const d = new Date(now);
+  const minutesNow = d.getHours() * 60 + d.getMinutes();
+  const asMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+  // "HH:MM" sorts as text, so this also holds when the evening slot is set earlier than the morning one.
+  const [first, second] = [pagi, sore].sort();
+  if (minutesNow < asMinutes(first)) return { time: first, tomorrow: false };
+  if (minutesNow < asMinutes(second)) return { time: second, tomorrow: false };
+  return { time: first, tomorrow: true };
+}
+
+export type SignalGrade = { bars: 1 | 2 | 3 | 4; label: string; tone: "ok" | "warn" | "danger" };
+
+/** Rule-of-thumb grades for an ESP8266 on 2.4 GHz; RSSI is a rough signal, so the words stay coarse. */
+export function signalGrade(rssi: number): SignalGrade {
+  if (rssi >= -55) return { bars: 4, label: "Kuat", tone: "ok" };
+  if (rssi >= -67) return { bars: 3, label: "Baik", tone: "ok" };
+  if (rssi >= -78) return { bars: 2, label: "Lemah", tone: "warn" };
+  return { bars: 1, label: "Sangat lemah", tone: "danger" };
+}

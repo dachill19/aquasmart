@@ -1,0 +1,463 @@
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+/* The theme is a class, not a media query: the operator toggles it during a demo
+   on a screen nobody has seen yet. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --breakpoint-3xl: 100rem;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-brand: var(--brand);
+  --color-accent: var(--accent);
+  --color-aqua: var(--aqua);
+  --color-feed: var(--feed);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+}
+
+/* Restraint is the premium move here: one neutral ground, hairline edges, and colour
+   spent only on data (water blue, feed amber) and on exceptions. Light is the same
+   instrument in daylight, re-weighted for contrast rather than inverted. */
+:root {
+  --bg: #f2f5f9;
+  --surface: #ffffff;
+  --raised: #f4f7fb;
+  --line: rgb(10 30 55 / 0.09);
+  --line-strong: rgb(10 30 55 / 0.17);
+  --fg: #0a1626;
+  --muted: #54677d;
+  --faint: #8a9aae;
+
+  --brand: #054376;
+  --accent: #0a68cc;
+  --accent-hi: #2d8cf0;
+  --aqua: #078aa6;
+  --feed: #c27a0c;
+  --ok: #0b8f62;
+  --warn: #a8700b;
+  --danger: #cf3b4f;
+
+  --glow: rgb(5 67 118 / 0.07);
+  --card-shadow: 0 1px 2px rgb(10 30 55 / 0.04);
+  --pipe: #b4c3d4;
+  --pipe-inner: #e9eff6;
+  --glass: rgb(255 255 255 / 0.5);
+  --glass-edge: rgb(10 30 55 / 0.28);
+  --water-hi: #3fb2ff;
+  --water-lo: #0b5fc0;
+}
+
+.dark {
+  --bg: #070b11;
+  --surface: #0c121b;
+  --raised: #111926;
+  --line: rgb(255 255 255 / 0.075);
+  --line-strong: rgb(255 255 255 / 0.14);
+  --fg: #eef3f9;
+  --muted: #8b9bb0;
+  --faint: #5c6c82;
+
+  --brand: #054376;
+  --accent: #55a8ff;
+  --accent-hi: #8cc6ff;
+  --aqua: #3ccbe6;
+  --feed: #f2a93b;
+  --ok: #3fc590;
+  --warn: #e8ae3d;
+  --danger: #f2646f;
+
+  --glow: rgb(5 67 118 / 0.55);
+  --card-shadow: none;
+  --pipe: #1f3250;
+  --pipe-inner: #09111d;
+  --glass: rgb(160 200 245 / 0.04);
+  --glass-edge: rgb(160 205 255 / 0.3);
+  --water-hi: #2399ff;
+  --water-lo: #07408a;
+}
+
+@layer base {
+  html {
+    background: var(--bg);
+    color-scheme: light;
+    scroll-behavior: smooth;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01" 1, "cv11" 1;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* One light source: the project's navy, pooled at the top-left like daylight through water. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(70rem 32rem at 8% -10%, var(--glow), transparent 70%);
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  :where(a, button, input, select, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--accent-hi);
+    outline-offset: 2px;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+
+  :where(.tnum) {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+}
+
+@layer components {
+  .card {
+    border-radius: 0.875rem;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    box-shadow: var(--card-shadow);
+  }
+
+  /* Small sentence-case label. All-caps tracking on every label read as a template. */
+  .label {
+    font-size: 0.75rem;
+    line-height: 1.2;
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  /* Status tag: tone by colour and by the words, never colour alone. */
+  .tag {
+    --tone: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    height: 1.5rem;
+    border-radius: 0.4rem;
+    padding: 0 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--tone);
+    background: color-mix(in oklab, var(--tone) 11%, transparent);
+  }
+  .tag[data-tone="ok"] {
+    --tone: var(--ok);
+  }
+  .tag[data-tone="warn"] {
+    --tone: var(--warn);
+  }
+  .tag[data-tone="danger"] {
+    --tone: var(--danger);
+  }
+  .tag[data-tone="info"] {
+    --tone: var(--accent);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    min-height: 2.75rem;
+    border-radius: 0.625rem;
+    border: 1px solid var(--line-strong);
+    padding: 0 1rem;
+    font-size: 0.875rem;
+    font-weight: 550;
+    color: var(--fg);
+    background: transparent;
+    transition:
+      background-color 140ms,
+      border-color 140ms,
+      opacity 140ms,
+      transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .btn:hover:not(:disabled) {
+    background: var(--raised);
+    border-color: color-mix(in oklab, var(--fg) 30%, transparent);
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.985);
+  }
+  .btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+  /* A command in flight is not a dead control: it keeps its look and shows a spinner. */
+  .btn:disabled[data-waiting="true"] {
+    opacity: 0.85;
+    cursor: progress;
+  }
+  /* The one loud button on the page is plain ink on ground: no gradient, no glow. */
+  .btn-primary {
+    border-color: transparent;
+    color: var(--bg);
+    background: var(--fg);
+  }
+  .btn-primary:hover:not(:disabled) {
+    border-color: transparent;
+    background: color-mix(in oklab, var(--fg) 88%, var(--bg));
+  }
+
+  .field {
+    display: flex;
+    align-items: center;
+    height: 2.75rem;
+    border-radius: 0.625rem;
+    border: 1px solid var(--line-strong);
+    background: var(--raised);
+    transition:
+      border-color 140ms,
+      box-shadow 140ms;
+  }
+  .field:hover {
+    border-color: color-mix(in oklab, var(--fg) 30%, transparent);
+  }
+  .field:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent);
+  }
+  .field[data-invalid="true"] {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--danger) 18%, transparent);
+  }
+  .field input {
+    width: 100%;
+    min-width: 0;
+    background: transparent;
+    padding: 0 0.7rem;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    color: var(--fg);
+    outline: none;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .skeleton {
+    border-radius: 0.5rem;
+    background: linear-gradient(
+      100deg,
+      var(--raised) 30%,
+      color-mix(in oklab, var(--fg) 9%, transparent) 50%,
+      var(--raised) 70%
+    );
+    background-size: 220% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+}
+
+/* ---- motion ---- */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.rise {
+  animation: rise-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+}
+.slide-in {
+  animation: slide-in 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  60% {
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.pop {
+  animation: pop 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+@keyframes wave-drift {
+  to {
+    transform: translateX(-120px);
+  }
+}
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(-3px);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+@keyframes swim {
+  0% {
+    transform: translateX(-26px) scaleX(1);
+  }
+  49.9% {
+    transform: translateX(26px) scaleX(1);
+  }
+  50% {
+    transform: translateX(26px) scaleX(-1);
+  }
+  99.9% {
+    transform: translateX(-26px) scaleX(-1);
+  }
+  100% {
+    transform: translateX(-26px) scaleX(1);
+  }
+}
+@keyframes bubble {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateY(-34px) scale(1);
+    opacity: 0;
+  }
+}
+@keyframes drip {
+  to {
+    stroke-dashoffset: -22;
+  }
+}
+@keyframes ripple {
+  from {
+    transform: scale(0.35);
+    opacity: 0.75;
+  }
+  to {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+@keyframes beacon {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.vessel-wave {
+  animation: wave-drift 7s linear infinite;
+}
+.vessel-wave-back {
+  animation: wave-drift 11s linear infinite reverse;
+}
+.vessel-fish {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: swim 16s ease-in-out infinite;
+}
+.vessel-fish-body {
+  animation: bob 4.5s ease-in-out infinite;
+}
+.vessel-bubble {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bubble 2.4s ease-in infinite;
+}
+.vessel-stream {
+  animation: drip 0.7s linear infinite;
+}
+.vessel-ripple {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ripple 1.6s ease-out infinite;
+}
+.beacon {
+  animation: beacon 2s ease-out infinite;
+}
+
+/* A device that has gone quiet should not look alive: its tank stops moving. */
+.is-stale .vessel-wave,
+.is-stale .vessel-wave-back,
+.is-stale .vessel-fish,
+.is-stale .vessel-fish-body,
+.is-stale .vessel-bubble,
+.is-stale .vessel-stream,
+.is-stale .vessel-ripple {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

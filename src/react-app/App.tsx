@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { Header } from "./components/Header";
-import { MetricBlock, type ContextRow } from "./components/MetricBlock";
-import { ControlBlock } from "./components/ControlBlock";
-import { RecordTable } from "./components/RecordTable";
-import { HistoryChart } from "./components/HistoryChart";
-import { SettingsPanel } from "./components/SettingsPanel";
+import { TriangleAlert, WifiOff } from "lucide-react";
+import { Activity } from "./components/Activity";
+import { ControlDeck } from "./components/ControlDeck";
+import { SettingsStudio } from "./components/SettingsStudio";
+import { StatusHero } from "./components/StatusHero";
+import { TopBar } from "./components/TopBar";
+import { TrendChart } from "./components/TrendChart";
+import { VesselCard } from "./components/VesselCard";
+import { Sparkline } from "./components/Sparkline";
+import { Vitals } from "./components/Vitals";
+import { FeedHopper } from "./components/vessels/FeedHopper";
+import { WaterTank } from "./components/vessels/WaterTank";
 import { OFFLINE_AFTER_MS, useTelemetry } from "./lib/api";
-import { COMMAND_LABEL, formatClock, formatNumber, formatUptime, toTimeValue } from "./lib/format";
+import { COMMAND_LABEL, formatClock, formatNumber } from "./lib/format";
 
 type Theme = "light" | "dark";
 
@@ -15,23 +21,9 @@ function initialTheme(): Theme {
     const saved = localStorage.getItem("aquasmart-theme");
     if (saved === "light" || saved === "dark") return saved;
   } catch {
-    // Private windows and blocked storage are normal; fall through to the system.
+    // Private windows and blocked storage are normal; fall through to dark, the primary theme.
   }
-  return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
-}
-
-/** Which scheduled feeding comes next, read off the device's own settings. */
-function nextFeeding(settings: Record<string, number>, now: number): string {
-  const pagi = toTimeValue(settings.jam_pagi, settings.menit_pagi);
-  const sore = toTimeValue(settings.jam_sore, settings.menit_sore);
-  const d = new Date(now);
-  const minutesNow = d.getHours() * 60 + d.getMinutes();
-  const asMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
-  // "HH:MM" sorts as text, so this also holds when the evening slot is set earlier than the morning one.
-  const [first, second] = [pagi, sore].sort();
-  if (minutesNow < asMinutes(first)) return first;
-  if (minutesNow < asMinutes(second)) return second;
-  return `${first} besok`;
+  return "dark";
 }
 
 export default function App() {
@@ -41,6 +33,7 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#050c18" : "#eaf1f8");
     try {
       localStorage.setItem("aquasmart-theme", theme);
     } catch {
@@ -61,14 +54,16 @@ export default function App() {
     () => new Set(commands.filter((c) => c.acked_at === null && !c.expired).map((c) => c.type)),
     [commands]
   );
+  const pendingCount = commands.filter((c) => c.acked_at === null && !c.expired).length;
 
-  const age = reading ? now - reading.ts : null;
-  const offline = age === null || age > OFFLINE_AFTER_MS;
+  const offline = reading === null || now - reading.ts > OFFLINE_AFTER_MS;
+  // Stale means there are numbers, but the device has stopped vouching for them.
+  const stale = reading !== null && offline;
   const batasAir = settings.batas_air ?? 30;
   const targetAir = settings.target_air ?? 80;
   const batasPakan = settings.batas_pakan ?? 30;
 
-  // Spoken result of the page's primary action, for anyone not watching the table.
+  // Spoken result of the page's primary action, for anyone not watching the timeline.
   const announcement = useMemo(() => {
     const newest = commands[0];
     if (!newest) return "";
@@ -79,33 +74,18 @@ export default function App() {
       : `${label} disahkan alat pukul ${formatClock(newest.acked_at)}.`;
   }, [commands]);
 
-  const pompaText = reading?.terkunci ? "Terkunci" : reading?.pompa ? "Menyala" : "Mati";
-
-  const waterRows: ContextRow[] = [
-    { k: "Status", v: reading?.status_air || "—" },
-    { k: "Pompa", v: reading ? pompaText : "—" },
-    { k: "Pembacaan", v: reading ? `pukul ${formatClock(reading.ts)}` : "—" },
-  ];
-
-  const feedRows: ContextRow[] = [
-    { k: "Status", v: reading?.status_pakan || "—" },
-    { k: "Pakan berikutnya", v: nextFeeding(settings, now) },
-    // The calibrated span, not a claimed accuracy figure: it is the number the
-    // operator needs while setting the two points, and it is actually known.
-    {
-      k: "Rentang kalibrasi",
-      v:
-        settings.pakan_penuh_mm && settings.pakan_kosong_mm
-          ? `${settings.pakan_penuh_mm}–${settings.pakan_kosong_mm} mm`
-          : "—",
-    },
-  ];
+  const waterLow = reading?.level_air != null && reading.level_air < batasAir;
+  const feedLow = reading?.stok_pakan != null && reading.stok_pakan < batasPakan;
+  const trendSpan =
+    history.length >= 2 ? `${Math.max(1, Math.round((history[history.length - 1].ts - history[0].ts) / 60000))} menit terakhir` : "";
+  const distanceMm = reading?.jarak_pakan != null ? reading.jarak_pakan * 10 : null;
 
   return (
-    <div className="min-h-screen">
-      <Header
+    <div className="min-h-screen pb-24">
+      <TopBar
         lastSeen={reading?.ts ?? null}
         now={now}
+        offline={offline}
         theme={theme}
         onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
       />
@@ -114,93 +94,134 @@ export default function App() {
         {announcement}
       </p>
 
-      {error && (
-        <p
-          role="alert"
-          className="border-b border-[var(--stamp)] bg-[var(--panel)] px-6 py-3 text-sm sm:px-10"
-          style={{ color: "var(--stamp)" }}
-        >
-          Gagal menghubungi server: {error}. Angka di bawah mungkin sudah usang.
-        </p>
-      )}
+      <main className="mx-auto max-w-[2200px] px-4 sm:px-6 xl:px-8">
+        <StatusHero
+          reading={reading}
+          loading={loading}
+          offline={offline}
+          batasAir={batasAir}
+          batasPakan={batasPakan}
+          pending={pendingCount}
+          now={now}
+        />
 
-      {!loading && reading === null && !error && (
-        <p className="border-b border-[var(--rule)] bg-[var(--panel)] px-6 py-3 text-sm text-[var(--ink-muted)] sm:px-10">
-          Alat belum pernah melapor. Semua tombol tetap bisa ditekan, dan perintahnya akan menunggu
-          sampai alat terhubung.
-        </p>
-      )}
+        {error && (
+          <p
+            role="alert"
+            className="slide-in mt-4 flex items-start gap-3 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm"
+          >
+            <TriangleAlert size={18} className="mt-px shrink-0 text-danger" aria-hidden="true" />
+            <span>
+              <strong className="font-semibold text-danger">Gagal menghubungi server:</strong>{" "}
+              <span className="text-muted">{error}. Angka di bawah mungkin sudah usang.</span>
+            </span>
+          </p>
+        )}
 
-      {!loading && reading !== null && offline && (
-        <p className="border-b border-[var(--rule)] bg-[var(--panel)] px-6 py-3 text-sm sm:px-10">
-          <span style={{ color: "var(--stamp)" }}>Alat sedang tidak terhubung.</span>{" "}
-          <span className="text-[var(--ink-muted)]">
-            Angka di bawah adalah pembacaan terakhir yang tersimpan, bukan kondisi saat ini.
-          </span>
-        </p>
-      )}
+        {stale && !error && (
+          <p className="slide-in mt-4 flex items-start gap-3 rounded-xl border border-line-strong bg-raised px-4 py-3 text-sm">
+            <WifiOff size={18} className="mt-px shrink-0 text-muted" aria-hidden="true" />
+            <span className="text-muted">
+              Tampilan dibekukan pada pembacaan pukul <span className="tnum font-medium text-fg">{formatClock(reading.ts)}</span>. Tangki dan
+              wadah di bawah menunjukkan keadaan saat itu, bukan sekarang.
+            </span>
+          </p>
+        )}
 
-      <main className="mx-auto max-w-[1680px]">
-        <div className="grid border-b border-[var(--rule)] lg:grid-cols-[1fr_1fr_minmax(300px,360px)]">
-          <MetricBlock
+        <div className="mt-5 grid gap-4 xl:grid-cols-2 3xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_390px]">
+          <VesselCard
+            index={0}
             label="Ketinggian air"
             value={reading?.level_air ?? null}
-            threshold={batasAir}
-            readout={`ADC ${reading?.raw_water ?? "—"}`}
-            emptyNote="belum ada pembacaan"
-            rows={waterRows}
+            loading={loading}
+            stale={stale}
+            critical={waterLow && !stale}
+            status={reading ? { text: reading.status_air || (waterLow ? "Rendah" : "Aman"), tone: waterLow ? "danger" : "ok" } : null}
+            readout={[`ADC ${reading?.raw_water ?? "—"}`, `rentang ${settings.air_kering ?? "—"}–${settings.air_basah ?? "—"} ADC`]}
+            visual={
+              <WaterTank
+                level={reading?.level_air ?? null}
+                threshold={batasAir}
+                target={targetAir}
+                pumpOn={Boolean(reading?.pompa) && !stale}
+                locked={Boolean(reading?.terkunci)}
+                stale={stale}
+              />
+            }
+            trend={
+              <>
+                <p className="label mb-1.5">{trendSpan}</p>
+                <Sparkline values={history.map((p) => p.level_air)} color="var(--accent)" threshold={batasAir} label="Tren ketinggian air" />
+              </>
+            }
+            stats={[
+              { k: "Ambang", v: `${batasAir}%` },
+              { k: "Target isi", v: `${targetAir}%` },
+              { k: "Pembacaan", v: reading ? formatClock(reading.ts) : "—" },
+            ]}
           />
-          <MetricBlock
+
+          <VesselCard
+            index={1}
             label="Stok pakan"
             value={reading?.stok_pakan ?? null}
-            threshold={batasPakan}
-            // Millimetres, the same unit the calibration fields take, so
-            // reading this figure and typing it in needs no conversion.
-            readout={`jarak ${
-              reading?.jarak_pakan !== null && reading?.jarak_pakan !== undefined
-                ? `${formatNumber(reading.jarak_pakan * 10)} mm`
-                : "—"
-            }`}
-            emptyNote="belum ada pembacaan"
-            rows={feedRows}
+            loading={loading}
+            stale={stale}
+            critical={feedLow && !stale}
+            status={reading ? { text: reading.status_pakan || (feedLow ? "Menipis" : "Cukup"), tone: feedLow ? "warn" : "ok" } : null}
+            // Millimetres, the same unit the calibration fields take, so reading this
+            // figure and typing it in needs no conversion.
+            readout={[`jarak ${distanceMm !== null ? `${formatNumber(distanceMm)} mm` : "—"}`, `rentang ${settings.pakan_penuh_mm ?? "—"}–${settings.pakan_kosong_mm ?? "—"} mm`]}
+            visual={<FeedHopper level={reading?.stok_pakan ?? null} threshold={batasPakan} distanceMm={distanceMm} stale={stale} />}
+            trend={
+              <>
+                <p className="label mb-1.5">{trendSpan}</p>
+                <Sparkline values={history.map((p) => p.stok_pakan)} color="var(--feed)" step threshold={batasPakan} label="Tren stok pakan" />
+              </>
+            }
+            stats={[
+              { k: "Ambang", v: `${batasPakan}%` },
+              { k: "Servo", v: `${settings.durasi_pakan ?? 3} dtk` },
+              { k: "Pembacaan", v: reading ? formatClock(reading.ts) : "—" },
+            ]}
+            note="Sensor jarak hanya membedakan sekitar lima tingkat (±20%), jadi angka ini bergerak dalam anak tangga."
           />
-          <ControlBlock
-            settings={settings}
-            pumpOn={Boolean(reading?.pompa)}
-            locked={Boolean(reading?.terkunci)}
-            pendingTypes={pendingTypes}
-            onSent={refresh}
-          />
+
+          <div className="xl:col-span-2 3xl:col-span-1">
+            <ControlDeck
+              settings={settings}
+              pumpOn={Boolean(reading?.pompa)}
+              locked={Boolean(reading?.terkunci)}
+              offline={offline}
+              commands={commands}
+              pendingTypes={pendingTypes}
+              onSent={refresh}
+            />
+          </div>
         </div>
 
-        <section className="grid gap-x-10 gap-y-4 border-b border-[var(--rule)] px-6 py-5 font-mono text-sm sm:grid-cols-3 sm:px-10">
-          <p>
-            <span className="label">Sinyal WiFi</span>
-            <span className="tnum mt-1 block">
-              {reading?.rssi !== null && reading?.rssi !== undefined ? `${reading.rssi} dBm` : "—"}
-            </span>
-          </p>
-          <p>
-            <span className="label">Alat menyala</span>
-            <span className="tnum mt-1 block">{formatUptime(reading?.uptime_ms ?? null)}</span>
-          </p>
-          <p>
-            <span className="label">Perintah menunggu</span>
-            <span className="tnum mt-1 block">
-              {pendingTypes.size === 0 ? "tidak ada" : `${pendingTypes.size} perintah`}
-            </span>
-          </p>
-        </section>
+        <div className="mt-4">
+          <Vitals reading={reading} settings={settings} now={now} stale={stale} />
+        </div>
 
-        <RecordTable events={latest?.events ?? []} commands={commands} settings={settings} />
+        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
+          <TrendChart points={history} thresholdAir={batasAir} targetAir={targetAir} />
+          <Activity events={latest?.events ?? []} commands={commands} settings={settings} />
+        </div>
 
-        <HistoryChart points={history} thresholdAir={batasAir} targetAir={targetAir} />
-
-        <SettingsPanel settings={settings} onSaved={refresh} />
+        <div className="mt-4">
+          <SettingsStudio settings={settings} onSaved={refresh} />
+        </div>
       </main>
 
-      <footer className="border-t border-[var(--rule)] px-6 py-6 font-mono text-xs text-[var(--ink-muted)] sm:px-10">
-        AQUASMART · prototipe akuarium pintar · data disimpan di Cloudflare D1 (APAC)
+      <footer className="mx-auto mt-10 flex max-w-[2200px] flex-wrap items-center justify-between gap-4 border-t border-line px-4 pt-5 text-xs text-muted sm:px-6 xl:px-8">
+        <span className="flex items-center gap-2.5">
+          <img src="/logo-mark.png" alt="" width={20} height={20} className="h-5 w-5 object-contain opacity-80" />
+          <span>
+            <strong className="font-semibold text-fg">AQUASMART</strong> · prototipe akuarium pintar
+          </span>
+        </span>
+        <span>Informatika UNS · data tersimpan di Cloudflare D1</span>
       </footer>
     </div>
   );

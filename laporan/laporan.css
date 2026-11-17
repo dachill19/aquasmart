@@ -1,0 +1,94 @@
+/* Template dosen: A4, margin 2,5 cm, Times New Roman 12 pt, spasi 1,15. */
+@page {
+  size: A4;
+  margin: 25mm;
+  @bottom-center {
+    content: counter(page);
+    font-family: "Times New Roman", Times, serif;
+    font-size: 11pt;
+  }
+}
+@page :first {
+  @bottom-center { content: none; }
+}
+
+* { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+html { font-family: "Times New Roman", Times, serif; font-size: 12pt; color: #000; }
+body { margin: 0; line-height: 1.15; text-align: justify; orphans: 3; widows: 3; }
+
+p { margin: 0 0 7pt; }
+p.rapat { margin-bottom: 3pt; break-after: avoid; }
+
+h1, h2, h3 { font-family: "Times New Roman", Times, serif; color: #000; break-after: avoid; text-align: left; }
+h1 { font-size: 14pt; font-weight: 700; text-align: center; margin: 0 0 14pt; break-before: page; }
+h1.polos { break-before: page; }
+h2 { font-size: 13pt; font-weight: 700; margin: 16pt 0 6pt; }
+h3 { font-size: 12pt; font-weight: 700; margin: 12pt 0 5pt; }
+
+ul, ol { margin: 0 0 8pt; padding-left: 1.1cm; }
+li { margin: 0 0 4pt; padding-left: 2pt; }
+
+.isi { background: #FFF200; font-weight: 700; }
+.penanda { color: #fff; font-size: 1px; line-height: 0; position: absolute; }
+
+/* Sampul */
+.sampul { height: 247mm; display: flex; flex-direction: column; justify-content: space-between; text-align: center; break-after: page; }
+.sampul .jenis { font-size: 16pt; font-weight: 700; letter-spacing: 0.5pt; }
+.sampul .matkul { font-size: 14pt; font-weight: 700; margin-top: 3pt; }
+.sampul .logo-uns { width: 4.6cm; height: 4.6cm; margin: 16mm 0 12mm; object-fit: contain; }
+.sampul .judul { font-size: 22pt; font-weight: 700; letter-spacing: 3pt; color: #054376; }
+.sampul .subjudul { font-size: 13pt; font-weight: 700; margin: 6pt 14mm 0; line-height: 1.25; }
+.sampul table.identitas { margin: 0 auto; border-collapse: collapse; text-align: left; font-size: 12pt; width: 15.4cm; }
+.sampul table.identitas td { padding: 3pt 4pt; vertical-align: top; }
+.sampul table.identitas td:first-child { width: 3.6cm; white-space: nowrap; }
+.sampul table.identitas td:nth-child(2) { width: 0.5cm; }
+.sampul .anggota { text-align: left; margin: 0 auto; width: 15.4cm; }
+.sampul .anggota p.disusun { font-weight: 700; margin: 0 0 4pt; text-align: center; }
+.sampul .anggota ol { margin: 0 auto; width: 11.5cm; padding-left: 0.8cm; }
+.sampul .anggota li { margin: 0 0 2pt; }
+.sampul .institusi { font-weight: 700; line-height: 1.35; font-size: 12pt; }
+.sampul .institusi div:last-child { margin-top: 3pt; }
+
+/* Daftar isi, gambar, tabel */
+.front { break-before: page; text-align: left; }
+.front h1.polos { margin-bottom: 14pt; break-before: auto; }
+.baris { margin: 0 0 3.5pt; line-height: 1.2; break-inside: avoid; }
+.baris a { display: flex; align-items: baseline; color: inherit; text-decoration: none; }
+.baris .teks { flex: 0 1 auto; }
+.baris .titik { flex: 1 1 14px; min-width: 14px; border-bottom: 1px dotted #444; margin: 0 4pt; transform: translateY(-3px); }
+.baris .hal { flex: 0 0 auto; min-width: 1.2em; text-align: right; }
+.baris.lv1 { font-weight: 700; margin-top: 7pt; }
+.baris.lv2 { padding-left: 0.5cm; }
+.baris.lv3 { padding-left: 1.1cm; }
+.front .baris.lv2 { padding-left: 0; }
+.front:nth-of-type(n+3) .baris.lv2 { padding-left: 0; }
+.baris.lv2 .teks, .baris.lv3 .teks { padding-right: 2pt; }
+
+/* Gambar dan tabel */
+figure { margin: 10pt 0 12pt; text-align: center; break-inside: avoid; }
+figure img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+figure .dua { display: flex; justify-content: center; gap: 0.7cm; align-items: flex-start; }
+figure .dua img { margin: 0; }
+figcaption { font-size: 10pt; margin: 5pt 10mm 0; text-align: center; line-height: 1.2; }
+
+.tabel { margin: 8pt 0 12pt; }
+.tabel .cap { font-size: 10pt; text-align: center; margin: 0 0 4pt; break-after: avoid; line-height: 1.2; }
+table { width: 100%; border-collapse: collapse; font-size: 10pt; line-height: 1.2; text-align: left; table-layout: fixed; }
+th, td { border: 0.7pt solid #222; padding: 3pt 5pt; vertical-align: top; overflow-wrap: anywhere; }
+th { background: #E4E8EC; font-weight: 700; text-align: center; }
+tr { break-inside: avoid; }
+thead { display: table-header-group; }
+
+/* Kode */
+.kode { margin: 6pt 0 10pt; border: 0.7pt solid #B8C2CC; border-left: 3pt solid #054376; background: #F6F8FA; break-inside: auto; }
+.kode-judul { font-family: "Times New Roman", Times, serif; font-size: 9.5pt; font-weight: 700; padding: 3pt 7pt; background: #E9EEF3; border-bottom: 0.7pt solid #B8C2CC; text-align: left; break-after: avoid; }
+.kode pre { margin: 0; padding: 5pt 7pt; font-family: Consolas, "Courier New", monospace; font-size: 8pt; line-height: 1.22; white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
+
+/* Daftar pustaka */
+.pustaka p { display: flex; gap: 0.8cm; margin: 0 0 7pt; text-align: justify; }
+.pustaka .no { flex: 0 0 0.9cm; }
+.pustaka p span:last-child { flex: 1; }
+h1.lampiran { margin-bottom: 4pt; }
+
+figcaption .cat { font-size: 9pt; color: #333; display: inline-block; margin-top: 2pt; }
