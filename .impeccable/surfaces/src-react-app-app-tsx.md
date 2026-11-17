@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 slug: "src-react-app-app-tsx"
 primary_target: "src/react-app/App.tsx"
 related_targets: []
@@ -15,43 +15,38 @@ both ship.
 
 ## Direction contract
 
-THESIS: The tank keeps an official record of itself. Every command is a filed entry that
-is provisional until the device validates it, so the screen tells the truth about queued
-control instead of flattering the button press. It refuses the category default of floating
-metric cards on a shadowed grid with one blue accent.
+THESIS: The dashboard shows the tank itself. Water level and feed stock are drawn as the
+physical vessels they measure, so the state reads before any number does, and the numbers
+sit beside them as the exact record. It replaces the first "Kartu Kendali" direction
+(ruled paper form, rotated SAH stamps), which was rejected as heavy and dated.
 
-OWN-WORLD: The Indonesian institutional form — KRS, kartu kendali, the stamped record
-sheet. Carbon ground (#091726) under official blue (#054376, the project's own navy) with
-a lighter blue for live values and stamp red (#E2515E) reserved for exceptions and the
-validation mark. Light mode is the same form printed on paper rather than a recolour: warm
-white ground, the same two inks, the same rules. Hairline rules at every boundary, no
-shadows, no rounded cards, no floating. Numbers are tabular and monospaced; labels are
-small, letter-spaced uppercase. Density is high and ruled, aligned to one grid.
+OWN-WORLD: Deep water at night. The project's navy (#054376) pools at the top of a near-black
+blue ground like light through water; surfaces are frosted glass with hairline edges. Blue
+is the live-data hue, amber is feed, red is reserved for exceptions. Light mode is the same
+instrument in daylight, re-weighted for contrast rather than inverted. Geist for text, Geist
+Mono for readouts, tabular figures everywhere a quantity is read.
 
-STORY: The visitor reads water level and feed stock as two monumental live figures, sees
-immediately whether the pump is locked, acts, and then watches the record line go from
-MENUNGGU ALAT to a stamped SAH with the server's own timestamp.
+HONESTY RULES (carried over from PRODUCT.md, expressed in the UI):
+- An offline device freezes and desaturates its vessels and says "dibekukan pada pembacaan
+  pukul ..."; stale numbers are never drawn as live.
+- A command is a request: the Kendali trace shows the three states the server records
+  (Antre, Diambil alat, Dijalankan) with their own timestamps, and Kedaluwarsa when it dies.
+- Feed stock is drawn against a five-band scale and charted as a step line, because the
+  sensor resolves about 20%. Durations are labelled "disetel", never as measured.
+- No temperature, no invented metrics.
 
-FIRST VIEWPORT: A ruled header carrying the logo, the record title, and the last-heard-from
-line at the right. Below it a three-column band: water level and feed stock as 100px+
-tabular figures over segmented gauge bars with their raw sensor readings beneath, then a
-right column of standard buttons (feed now, pump on/off, unlock) over the current schedule.
-Under that, full width, the record table: time, entry, duration drawn as a bar whose length
-is the real elapsed seconds, and a validation column holding either a rotated red SAH stamp
-or a dashed MENUNGGU ALAT.
+FIRST VIEWPORT: Frosted top bar (logo mark, wordmark, device presence pill, theme toggle);
+a one-sentence verdict on the tank (baik, pakan hampir habis, pompa terkunci, tidak
+terhubung) with flag chips; two large vessel cards (animated water tank with betta, pump
+inlet, threshold and target flags; feed hopper with ultrasonic beam and servo gate) each
+carrying the 100px+ figure and its raw sensor readout; the Kendali band beneath.
 
-FORM: Candidate 7 of seven grounded directions, assigned by the roll over my own top pick
-(Papan Duga Air). Raised by four declined challengers: duration as physical length
-(Labanotation), hairline module discipline (Japanese high-density web), user-marked state
-persisted (doujin catalog), one monumental live value beside an exact monospace readout
-(variable font specimen). seed:bfd5e7681300bb3b
-
-FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review,
-the verdict, DESIGN.md, and every shipping raster carrying its provenance.
+Below: vitals (WiFi grade, uptime, pump, next feeding with countdown), history chart with
+toggleable series and pump-run bands, activity timeline, and a settings studio whose floating
+save bar appears only while edits are unsaved.
 
 ## Unresolved
 
 - Whether the lecturer opens it on a projector, a laptop, or a phone is unknown, so no
-  viewport is privileged; the layout has to hold at all three.
-- No real telemetry exists yet. Empty and never-connected states are first-class, not
-  afterthoughts.
+  viewport is privileged; the layout holds from 390 px up.
+- No real telemetry exists yet. Empty and never-connected states are first-class.

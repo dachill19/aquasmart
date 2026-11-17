@@ -1,10 +1,19 @@
 <!doctype html>
-<html lang="id">
+<html lang="id" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="/logo-aquasmart.png" />
+    <meta name="description" content="AQUASMART: pemantauan dan kendali akuarium ikan hias secara jarak jauh." />
+    <meta name="theme-color" content="#050c18" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
     <title>AQUASMART</title>
+    <script>
+      // Settle the theme before first paint so a light-mode visitor never sees a dark flash.
+      try {
+        var t = localStorage.getItem("aquasmart-theme");
+        if (t === "light") document.documentElement.classList.remove("dark");
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
