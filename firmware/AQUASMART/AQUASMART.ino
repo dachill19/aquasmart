@@ -715,8 +715,10 @@ void setup() {
   pinMode(ECHO_PIN, INPUT);
   digitalWrite(TRIG_PIN, LOW);
 
-  servoPakan.attach(SERVO_PIN);
-  servoPakan.write(0);
+  // Posisi awal ikut diberikan saat attach. attach(pin) saja langsung
+  // menggerakkan servo ke tengah (sama dengan write(90), posisi buka), sehingga
+  // wadah pakan terbuka sesaat setiap kali alat menyala.
+  servoPakan.attach(SERVO_PIN, DEFAULT_MIN_PULSE_WIDTH, DEFAULT_MAX_PULSE_WIDTH, 0);
 
   Rtc.Begin();
   Rtc.SetIsWriteProtected(false);
