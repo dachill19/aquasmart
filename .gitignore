@@ -5,3 +5,9 @@ dist
 .impeccable/review
 secrets.h
 *.tsbuildinfo
+laporan/.preview
+
+# laporan: artefak hasil build (jalankan node laporan/build_pdf.cjs)
+laporan/laporan.html
+laporan/laporan-docs.html
+laporan/halaman.json
