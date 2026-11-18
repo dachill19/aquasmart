@@ -75,7 +75,7 @@ test("readings older than 7 days are deleted when the device reports", async () 
 
 test("a settings change that inverts a calibration pair is refused", async () => {
   const { call } = setup();
-  const res = await call("/api/command", { type: "settings", payload: { air_kering: 300, air_basah: 250 } });
+  const res = await call("/api/command", { device: 1, type: "settings", payload: { air_kering: 300, air_basah: 250 } });
   assert.equal(res.status, 400);
 });
 
@@ -111,4 +111,39 @@ test("pending commands and settings are handed out per device", async () => {
   const { json } = await telemetry("sim2");
   assert.deepEqual(json.commands.map((c: any) => c.type), ["unlock"]);
   assert.equal(json.settings.batas_air, 45);
+});
+
+test("commands and settings go to the requested device", async () => {
+  const { db, call } = setup();
+  assert.equal((await call("/api/command", { device: 2, type: "settings", payload: { batas_air: 40 } })).status, 200);
+  assert.equal((await call("/api/command", { device: 2, type: "feed" })).status, 200);
+  const s = db.prepare("SELECT device_id, value FROM settings WHERE key = 'batas_air' ORDER BY device_id").all() as any[];
+  assert.deepEqual(s.map((r) => [r.device_id, r.value]), [[1, "30"], [2, "40"], [3, "30"]]);
+  const c = db.prepare("SELECT device_id, type FROM commands ORDER BY id").all() as any[];
+  assert.deepEqual(c.map((r) => [r.device_id, r.type]), [[2, "settings"], [2, "feed"]]);
+});
+
+test("a command without a known device is refused", async () => {
+  const { call } = setup();
+  assert.equal((await call("/api/command", { type: "feed" })).status, 400);
+  assert.equal((await call("/api/command", { device: 99, type: "feed" })).status, 404);
+});
+
+test("calibration pairs are checked against the target device's settings", async () => {
+  const { db, call } = setup();
+  db.prepare("UPDATE settings SET value = '500' WHERE device_id = 1 AND key = 'air_basah'").run();
+  const res = await call("/api/command", { device: 2, type: "settings", payload: { air_kering: 300 } });
+  assert.equal(res.status, 400); // device 2 still has air_basah 210
+});
+
+test("latest, history and devices are scoped and summarised per device", async () => {
+  const { call, telemetry } = setup();
+  await telemetry("sim2", { level_air: 40 });
+  await telemetry("k", { level_air: 70 });
+  assert.equal((await call("/api/latest?device=2")).json.reading.level_air, 40);
+  assert.equal((await call("/api/latest")).json.reading.level_air, 70);
+  assert.equal((await call("/api/latest?device=99")).status, 404);
+  assert.deepEqual((await call("/api/history?device=2")).json.readings.map((r: any) => r.level_air), [40]);
+  const { devices } = (await call("/api/devices")).json;
+  assert.deepEqual(devices.map((d: any) => [d.id, d.simulated, d.level_air]), [[1, 0, 70], [2, 1, 40], [3, 1, null]]);
 });

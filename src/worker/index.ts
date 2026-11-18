@@ -57,6 +57,18 @@ const COMMAND_TTL_MS = 10 * 60_000;
 const READINGS_KEEP_MS = 7 * 24 * 3600_000;
 export type Settings = Record<string, number>;
 
+/** One aquarium with its latest reading, for the dashboard's fleet strip. */
+export type DeviceSummary = {
+  id: number;
+  name: string;
+  simulated: number;
+  ts: number | null;
+  level_air: number | null;
+  stok_pakan: number | null;
+  pompa: number | null;
+  terkunci: number | null;
+};
+
 /** Settings the dashboard may change, with the range each one accepts. */
 const SETTING_RANGES: ReadonlyArray<readonly [string, number, number]> = [
   ["jam_pagi", 0, 23],
@@ -118,6 +130,23 @@ async function readSettings(db: D1Database, deviceId: number): Promise<Settings>
   for (const row of results) out[row.key] = Number(row.value);
   return out;
 }
+
+async function deviceExists(db: D1Database, id: number): Promise<boolean> {
+  if (!Number.isInteger(id)) return false;
+  return (await db.prepare("SELECT 1 FROM devices WHERE id = ?").bind(id).first()) !== null;
+}
+
+/**
+ * The aquarium a dashboard GET asks about. Absent means 1, so a tab opened
+ * before multi-device support keeps showing the real device. Null when the id
+ * names no aquarium.
+ */
+async function requestedDevice(db: D1Database, raw: string | undefined): Promise<number | null> {
+  const id = raw === undefined ? 1 : Number(raw);
+  return (await deviceExists(db, id)) ? id : null;
+}
+
+const NO_DEVICE = { error: "akuarium tidak ada" };
 
 export async function sha256Hex(text: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -265,12 +294,20 @@ app.post("/api/telemetry", async (c) => {
 });
 
 app.post("/api/command", async (c) => {
-  let body: { type?: string; payload?: Record<string, unknown> };
+  let body: { device?: unknown; type?: string; payload?: Record<string, unknown> };
   try {
     body = await c.req.json();
   } catch {
     return c.json({ error: "body bukan JSON" }, 400);
   }
+
+  // Required, never defaulted: a command sent to the wrong aquarium is worse
+  // than one refused.
+  if (body.device === undefined || body.device === null) {
+    return c.json({ error: "akuarium tujuan belum dipilih" }, 400);
+  }
+  const deviceId = Number(body.device);
+  if (!(await deviceExists(c.env.DB, deviceId))) return c.json(NO_DEVICE, 404);
 
   const type = String(body.type ?? "") as CommandType;
   if (!COMMAND_TYPES.includes(type)) {
@@ -297,7 +334,7 @@ app.post("/api/command", async (c) => {
 
     // A partial update still has to hold against what is already stored:
     // changing one half of a calibration pair can invert it on its own.
-    const merged = { ...(await readSettings(c.env.DB, 1)), ...(payload as Record<string, number>) };
+    const merged = { ...(await readSettings(c.env.DB, deviceId)), ...(payload as Record<string, number>) };
     for (const [lowKey, highKey, gap, message] of CALIBRATION_PAIRS) {
       const low = merged[lowKey];
       const high = merged[highKey];
@@ -316,19 +353,19 @@ app.post("/api/command", async (c) => {
       Object.entries(payload).map(([k, v]) =>
         db
           .prepare(
-            "INSERT INTO settings (device_id, key, value) VALUES (1,?,?) ON CONFLICT(device_id, key) DO UPDATE SET value = excluded.value"
+            "INSERT INTO settings (device_id, key, value) VALUES (?,?,?) ON CONFLICT(device_id, key) DO UPDATE SET value = excluded.value"
           )
-          .bind(k, String(v))
+          .bind(deviceId, k, String(v))
       )
     );
   }
 
   const res = await db
-    .prepare("INSERT INTO commands (ts, type, payload) VALUES (?,?,?)")
-    .bind(now, type, JSON.stringify(payload))
+    .prepare("INSERT INTO commands (device_id, ts, type, payload) VALUES (?,?,?,?)")
+    .bind(deviceId, now, type, JSON.stringify(payload))
     .run();
 
-  return c.json({ ok: true, id: res.meta.last_row_id, type, payload });
+  return c.json({ ok: true, id: res.meta.last_row_id, device: deviceId, type, payload });
 });
 
 /**
@@ -340,41 +377,61 @@ app.post("/api/telegram", (c) => tanganiWebhook(c.req.raw, c.env));
 
 app.get("/api/latest", async (c) => {
   const db = c.env.DB;
+  const deviceId = await requestedDevice(db, c.req.query("device"));
+  if (deviceId === null) return c.json(NO_DEVICE, 404);
 
   const reading = await db
-    .prepare("SELECT * FROM readings ORDER BY ts DESC LIMIT 1")
+    .prepare("SELECT * FROM readings WHERE device_id = ? ORDER BY ts DESC LIMIT 1")
+    .bind(deviceId)
     .first<Reading>();
 
   const { results: events } = await db
-    .prepare("SELECT id, ts, kind, message FROM events ORDER BY ts DESC LIMIT 8")
+    .prepare("SELECT id, ts, kind, message FROM events WHERE device_id = ? ORDER BY ts DESC LIMIT 8")
+    .bind(deviceId)
     .all<EventRow>();
 
   const { results: commands } = await db
     .prepare(
       `SELECT id, ts, type, payload, sent_at, acked_at,
               (acked_at IS NULL AND ts < ?) AS expired
-         FROM commands ORDER BY id DESC LIMIT 12`
+         FROM commands WHERE device_id = ? ORDER BY id DESC LIMIT 12`
     )
-    .bind(Date.now() - COMMAND_TTL_MS)
+    .bind(Date.now() - COMMAND_TTL_MS, deviceId)
     .all<CommandRow>();
 
   return c.json({
+    device: deviceId,
     reading,
     events,
     commands,
-    settings: await readSettings(db, 1),
+    settings: await readSettings(db, deviceId),
     server_time: Date.now(),
   });
 });
 
 app.get("/api/history", async (c) => {
+  const deviceId = await requestedDevice(c.env.DB, c.req.query("device"));
+  if (deviceId === null) return c.json(NO_DEVICE, 404);
   const limit = Math.min(500, Math.max(10, Number(c.req.query("limit")) || 120));
   const { results } = await c.env.DB.prepare(
-    "SELECT ts, level_air, stok_pakan, pompa FROM readings ORDER BY ts DESC LIMIT ?"
+    "SELECT ts, level_air, stok_pakan, pompa FROM readings WHERE device_id = ? ORDER BY ts DESC LIMIT ?"
   )
-    .bind(limit)
+    .bind(deviceId, limit)
     .all();
-  return c.json({ readings: results.reverse() });
+  return c.json({ device: deviceId, readings: results.reverse() });
+});
+
+/** Every aquarium with its newest reading, for the fleet strip. One query. */
+app.get("/api/devices", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT d.id, d.name, d.simulated,
+            r.ts, r.level_air, r.stok_pakan, r.pompa, r.terkunci
+       FROM devices d
+       LEFT JOIN readings r
+         ON r.id = (SELECT id FROM readings WHERE device_id = d.id ORDER BY ts DESC LIMIT 1)
+      ORDER BY d.id`
+  ).all<DeviceSummary>();
+  return c.json({ devices: results, server_time: Date.now() });
 });
 
 app.onError((err, c) => c.json({ error: err.message }, 500));
