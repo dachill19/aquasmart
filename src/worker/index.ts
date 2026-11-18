@@ -109,23 +109,39 @@ function num(v: unknown, lo: number, hi: number): number | null {
   return Math.min(hi, Math.max(lo, n));
 }
 
-async function readSettings(db: D1Database): Promise<Settings> {
+async function readSettings(db: D1Database, deviceId: number): Promise<Settings> {
   const { results } = await db
-    .prepare("SELECT key, value FROM settings")
+    .prepare("SELECT key, value FROM settings WHERE device_id = ?")
+    .bind(deviceId)
     .all<{ key: string; value: string }>();
   const out: Settings = {};
   for (const row of results) out[row.key] = Number(row.value);
   return out;
 }
 
-/** The device key gates writes so a stray URL cannot poison the record. */
-function deviceAuthorized(c: { req: { header: (k: string) => string | undefined }; env: Bindings }) {
-  const key = c.req.header("x-device-key");
-  return Boolean(c.env.DEVICE_KEY) && key === c.env.DEVICE_KEY;
+export async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Which aquarium a device key belongs to, or null for an unknown key. The key
+ * gates writes so a stray URL cannot poison the record. The real ESP8266 keeps
+ * the DEVICE_KEY secret it was flashed with and is always device 1; every other
+ * device is looked up by the hash of its key.
+ */
+async function resolveDevice(env: Bindings, key: string | undefined): Promise<number | null> {
+  if (!key) return null;
+  if (env.DEVICE_KEY && key === env.DEVICE_KEY) return 1;
+  const row = await env.DB.prepare("SELECT id FROM devices WHERE key_hash = ?")
+    .bind(await sha256Hex(key))
+    .first<{ id: number }>();
+  return row?.id ?? null;
 }
 
 app.post("/api/telemetry", async (c) => {
-  if (!deviceAuthorized(c)) return c.json({ error: "unauthorized" }, 401);
+  const deviceId = await resolveDevice(c.env, c.req.header("x-device-key"));
+  if (deviceId === null) return c.json({ error: "unauthorized" }, 401);
 
   let body: Record<string, unknown>;
   try {
@@ -140,11 +156,12 @@ app.post("/api/telemetry", async (c) => {
   await db
     .prepare(
       `INSERT INTO readings
-         (ts, level_air, raw_water, stok_pakan, jarak_pakan, pompa, terkunci,
+         (device_id, ts, level_air, raw_water, stok_pakan, jarak_pakan, pompa, terkunci,
           status_air, status_pakan, rssi, uptime_ms)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     .bind(
+      deviceId,
       now,
       num(body.level_air, 0, 100),
       num(body.raw_water, 0, 1024),
@@ -179,8 +196,8 @@ app.post("/api/telemetry", async (c) => {
       const kind = String(e.kind ?? "info").slice(0, 32);
       const message = String(e.message ?? "").slice(0, 200);
       const res = await db
-        .prepare("INSERT OR IGNORE INTO events (ts, kind, message, ext_id) VALUES (?,?,?,?)")
-        .bind(now, kind, message, e.id ? String(e.id).slice(0, 48) : null)
+        .prepare("INSERT OR IGNORE INTO events (device_id, ts, kind, message, ext_id) VALUES (?,?,?,?,?)")
+        .bind(deviceId, now, kind, message, e.id ? String(e.id).slice(0, 48) : null)
         .run();
 
       // Only a row that was actually written deserves an alert. A resent queue
@@ -198,15 +215,16 @@ app.post("/api/telemetry", async (c) => {
     if (baru.length) c.executionCtx.waitUntil(kirimSemua(c.env, baru));
   }
 
-  // Acknowledge whatever the device says it carried out.
+  // Acknowledge whatever the device says it carried out. Only its own commands:
+  // an id that belongs to another aquarium is ignored, not acked.
   if (Array.isArray(body.ack) && body.ack.length) {
     const ids = (body.ack as unknown[]).map(Number).filter(Number.isInteger).slice(0, 20);
     if (ids.length) {
       await db
         .prepare(
-          `UPDATE commands SET acked_at = ? WHERE id IN (${ids.map(() => "?").join(",")})`
+          `UPDATE commands SET acked_at = ? WHERE device_id = ? AND id IN (${ids.map(() => "?").join(",")})`
         )
-        .bind(now, ...ids)
+        .bind(now, deviceId, ...ids)
         .run();
     }
   }
@@ -215,9 +233,10 @@ app.post("/api/telemetry", async (c) => {
   // acked, so a dropped response just means it is offered again next cycle.
   const { results: pending } = await db
     .prepare(
-      "SELECT id, type, payload FROM commands WHERE acked_at IS NULL AND ts >= ? ORDER BY id LIMIT 10"
+      `SELECT id, type, payload FROM commands
+        WHERE device_id = ? AND acked_at IS NULL AND ts >= ? ORDER BY id LIMIT 10`
     )
-    .bind(now - COMMAND_TTL_MS)
+    .bind(deviceId, now - COMMAND_TTL_MS)
     .all<{ id: number; type: string; payload: string | null }>();
 
   if (pending.length) {
@@ -241,7 +260,7 @@ app.post("/api/telemetry", async (c) => {
       type: p.type,
       payload: p.payload ? JSON.parse(p.payload) : {},
     })),
-    settings: await readSettings(db),
+    settings: await readSettings(db, deviceId),
   });
 });
 
@@ -278,7 +297,7 @@ app.post("/api/command", async (c) => {
 
     // A partial update still has to hold against what is already stored:
     // changing one half of a calibration pair can invert it on its own.
-    const merged = { ...(await readSettings(c.env.DB)), ...(payload as Record<string, number>) };
+    const merged = { ...(await readSettings(c.env.DB, 1)), ...(payload as Record<string, number>) };
     for (const [lowKey, highKey, gap, message] of CALIBRATION_PAIRS) {
       const low = merged[lowKey];
       const high = merged[highKey];
@@ -297,7 +316,7 @@ app.post("/api/command", async (c) => {
       Object.entries(payload).map(([k, v]) =>
         db
           .prepare(
-            "INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+            "INSERT INTO settings (device_id, key, value) VALUES (1,?,?) ON CONFLICT(device_id, key) DO UPDATE SET value = excluded.value"
           )
           .bind(k, String(v))
       )
@@ -343,7 +362,7 @@ app.get("/api/latest", async (c) => {
     reading,
     events,
     commands,
-    settings: await readSettings(db),
+    settings: await readSettings(db, 1),
     server_time: Date.now(),
   });
 });

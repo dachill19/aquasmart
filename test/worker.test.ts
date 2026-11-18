@@ -2,6 +2,7 @@
 // exercised too. Node strips the types itself: `npm test`, no extra tooling.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import app from "../src/worker/index.ts";
@@ -26,6 +27,8 @@ function fakeD1(db: DatabaseSync) {
 function setup() {
   const db = new DatabaseSync(":memory:");
   db.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  // A known key for simulated device 2, so tests do not depend on the real simulator keys.
+  db.prepare("UPDATE devices SET key_hash = ? WHERE id = 2").run(createHash("sha256").update("sim2").digest("hex"));
   const pending: Promise<unknown>[] = [];
   const ctx = { waitUntil: (p: Promise<unknown>) => pending.push(p), passThroughOnException() {} };
   const env = { DB: fakeD1(db), DEVICE_KEY: "k" };
@@ -35,7 +38,8 @@ function setup() {
     await Promise.all(pending);
     return { status: res.status, json: (await res.json()) as any };
   };
-  const telemetry = () => call("/api/telemetry", {}, { "x-device-key": "k" });
+  const telemetry = (key = "k", body: Record<string, unknown> = {}) =>
+    call("/api/telemetry", body, { "x-device-key": key });
   return { db, call, telemetry };
 }
 
@@ -73,4 +77,38 @@ test("a settings change that inverts a calibration pair is refused", async () =>
   const { call } = setup();
   const res = await call("/api/command", { type: "settings", payload: { air_kering: 300, air_basah: 250 } });
   assert.equal(res.status, 400);
+});
+
+test("an unknown device key is rejected", async () => {
+  const { call } = setup();
+  const res = await call("/api/telemetry", {}, { "x-device-key": "nope" });
+  assert.equal(res.status, 401);
+});
+
+test("a simulated key writes readings to its own device only", async () => {
+  const { db, telemetry } = setup();
+  await telemetry("sim2", { level_air: 40 });
+  await telemetry("k", { level_air: 70 });
+  const rows = db.prepare("SELECT device_id, level_air FROM readings ORDER BY device_id").all() as any[];
+  assert.deepEqual(rows.map((r) => [r.device_id, r.level_air]), [[1, 70], [2, 40]]);
+});
+
+test("a device cannot ack another device's command", async () => {
+  const { db, telemetry } = setup();
+  const id = Number(
+    db.prepare("INSERT INTO commands (ts, type, payload, device_id) VALUES (?, 'feed', '{}', 1)").run(Date.now()).lastInsertRowid
+  );
+  await telemetry("sim2", { ack: [id] });
+  const row = db.prepare("SELECT acked_at FROM commands WHERE id = ?").get(id) as any;
+  assert.equal(row.acked_at, null);
+});
+
+test("pending commands and settings are handed out per device", async () => {
+  const { db, telemetry } = setup();
+  db.prepare("INSERT INTO commands (ts, type, payload, device_id) VALUES (?, 'feed', '{}', 1)").run(Date.now());
+  db.prepare("INSERT INTO commands (ts, type, payload, device_id) VALUES (?, 'unlock', '{}', 2)").run(Date.now());
+  db.prepare("UPDATE settings SET value = '45' WHERE device_id = 2 AND key = 'batas_air'").run();
+  const { json } = await telemetry("sim2");
+  assert.deepEqual(json.commands.map((c: any) => c.type), ["unlock"]);
+  assert.equal(json.settings.batas_air, 45);
 });
