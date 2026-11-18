@@ -7,7 +7,9 @@ related_targets: []
 
 ## Scope
 
-The AQUASMART operator dashboard: one screen, one aquarium. Visitor mode: Operate.
+The AQUASMART operator dashboard: one screen, one selected aquarium at a time, chosen from a
+fleet strip under the top bar (one real prototype plus simulated ones, each labelled).
+Visitor mode: Operate.
 Audience: the student group running the prototype, and the lecturer grading it on
 11 November 2026. Task: read the tank's state at a glance, act on it, and see whether the
 act landed. Constraint: the device polls, so every command waits; no login; dark and light

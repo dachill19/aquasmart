@@ -5,6 +5,7 @@ import { COMMAND_LABEL, formatClock } from "../lib/format";
 import { CardHead, Spinner } from "./ui";
 
 type Props = {
+  device: number;
   settings: Settings;
   pumpOn: boolean;
   locked: boolean;
@@ -115,7 +116,7 @@ function Trace({ command }: { command: CommandRow }) {
   );
 }
 
-export function ControlDeck({ settings, pumpOn, locked, offline, commands, pendingTypes, onSent }: Props) {
+export function ControlDeck({ device, settings, pumpOn, locked, offline, commands, pendingTypes, onSent }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -148,7 +149,7 @@ export function ControlDeck({ settings, pumpOn, locked, offline, commands, pendi
               sending={busy === "feed"}
               // A second feed queued behind a pending one is how a tank gets overfed.
               disabled={busy !== null || pendingTypes.has("feed")}
-              onClick={() => void fire("feed", () => sendCommand("feed"))}
+              onClick={() => void fire("feed", () => sendCommand(device, "feed"))}
             />
           </div>
           <Action
@@ -158,7 +159,7 @@ export function ControlDeck({ settings, pumpOn, locked, offline, commands, pendi
             waiting={pendingTypes.has("pump")}
             sending={busy === "pump"}
             disabled={busy !== null}
-            onClick={() => void fire("pump", () => sendCommand("pump", { on: !pumpOn }))}
+            onClick={() => void fire("pump", () => sendCommand(device, "pump", { on: !pumpOn }))}
           />
           <Action
             icon={<LockOpen size={18} />}
@@ -168,7 +169,7 @@ export function ControlDeck({ settings, pumpOn, locked, offline, commands, pendi
             sending={busy === "unlock"}
             // Unlocking a pump that is not locked only queues a command that does nothing.
             disabled={busy !== null || !locked || pendingTypes.has("unlock")}
-            onClick={() => void fire("unlock", () => sendCommand("unlock"))}
+            onClick={() => void fire("unlock", () => sendCommand(device, "unlock"))}
           />
         </div>
 

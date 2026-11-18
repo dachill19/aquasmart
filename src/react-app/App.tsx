@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { TriangleAlert, WifiOff } from "lucide-react";
 import { Activity } from "./components/Activity";
 import { ControlDeck } from "./components/ControlDeck";
+import { FleetStrip } from "./components/FleetStrip";
 import { SettingsStudio } from "./components/SettingsStudio";
 import { StatusHero } from "./components/StatusHero";
 import { TopBar } from "./components/TopBar";
@@ -11,7 +12,7 @@ import { Sparkline } from "./components/Sparkline";
 import { Vitals } from "./components/Vitals";
 import { FeedHopper } from "./components/vessels/FeedHopper";
 import { WaterTank } from "./components/vessels/WaterTank";
-import { OFFLINE_AFTER_MS, useTelemetry } from "./lib/api";
+import { OFFLINE_AFTER_MS, useDevices, useTelemetry } from "./lib/api";
 import { COMMAND_LABEL, formatClock, formatNumber } from "./lib/format";
 
 type Theme = "light" | "dark";
@@ -26,10 +27,36 @@ function initialTheme(): Theme {
   return "dark";
 }
 
+/** Kept in the URL, so a refresh or a shared link opens the same aquarium. */
+const PARAM = "akuarium";
+
+function initialDevice(): number {
+  const n = Number(new URLSearchParams(window.location.search).get(PARAM));
+  return Number.isInteger(n) && n > 0 ? n : 1;
+}
+
 export default function App() {
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [now, setNow] = useState(() => Date.now());
-  const { latest, history, error, loading, refresh } = useTelemetry();
+  const [device, setDevice] = useState(initialDevice);
+  const { devices, loaded: devicesLoaded } = useDevices();
+  const { latest, history, error, loading, refresh } = useTelemetry(device);
+
+  function selectDevice(id: number) {
+    setDevice(id);
+    const url = new URL(window.location.href);
+    if (id === 1) url.searchParams.delete(PARAM);
+    else url.searchParams.set(PARAM, String(id));
+    window.history.replaceState(null, "", url);
+  }
+
+  // An id from an old link or a typo falls back to the real aquarium instead of a blank page.
+  useEffect(() => {
+    if (devicesLoaded && devices.length > 0 && !devices.some((d) => d.id === device)) selectDevice(1);
+    // selectDevice only touches state and the URL; depending on it would re-run every render.
+  }, [devicesLoaded, devices, device]);
+
+  const current = devices.find((d) => d.id === device);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -95,6 +122,8 @@ export default function App() {
       </p>
 
       <main className="mx-auto max-w-[2200px] px-4 sm:px-6 xl:px-8">
+        <FleetStrip devices={devices} selected={device} now={now} onSelect={selectDevice} />
+
         <StatusHero
           reading={reading}
           loading={loading}
@@ -103,6 +132,8 @@ export default function App() {
           batasPakan={batasPakan}
           pending={pendingCount}
           now={now}
+          name={current?.name ?? `Akuarium ${String(device).padStart(2, "0")}`}
+          simulated={Boolean(current?.simulated)}
         />
 
         {error && (
@@ -189,6 +220,7 @@ export default function App() {
 
           <div className="xl:col-span-2 3xl:col-span-1">
             <ControlDeck
+              device={device}
               settings={settings}
               pumpOn={Boolean(reading?.pompa)}
               locked={Boolean(reading?.terkunci)}
@@ -210,7 +242,8 @@ export default function App() {
         </div>
 
         <div className="mt-4">
-          <SettingsStudio settings={settings} onSaved={refresh} />
+          {/* Keyed by aquarium: unsaved edits are dropped on a switch, never saved to the newly selected tank. */}
+          <SettingsStudio key={device} device={device} settings={settings} onSaved={refresh} />
         </div>
       </main>
 

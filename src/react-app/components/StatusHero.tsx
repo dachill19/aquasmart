@@ -10,6 +10,9 @@ type Props = {
   batasPakan: number;
   pending: number;
   now: number;
+  /** The selected aquarium, so the verdict is never read as another tank's. */
+  name: string;
+  simulated: boolean;
 };
 
 type Verdict = {
@@ -76,7 +79,8 @@ export function StatusHero(props: Props) {
       <div>
         <p className="tnum flex items-center gap-2.5 text-[0.8rem] text-muted">
           <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: color }} />
-          {date.format(new Date(props.now))} · Akuarium 01
+          {date.format(new Date(props.now))} · {props.name}
+          {props.simulated && <Tag>Simulasi</Tag>}
         </p>
         <h1 className="mt-2 text-[clamp(1.7rem,3vw,2.4rem)] font-semibold leading-[1.1] tracking-[-0.03em]">{v.title}</h1>
         <p className="mt-2 max-w-[62ch] text-[0.92rem] leading-relaxed text-muted">{v.body}</p>

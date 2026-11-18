@@ -4,7 +4,7 @@ import { sendCommand, type Settings } from "../lib/api";
 import { fromTimeValue, toTimeValue } from "../lib/format";
 import { CardHead, Spinner } from "./ui";
 
-type Props = { settings: Settings; onSaved: () => void };
+type Props = { device: number; settings: Settings; onSaved: () => void };
 
 type Draft = {
   pagi: string;
@@ -171,7 +171,7 @@ function TimeField({ label, value, onChange }: { label: string; value: string; o
   );
 }
 
-export function SettingsStudio({ settings, onSaved }: Props) {
+export function SettingsStudio({ device, settings, onSaved }: Props) {
   const [draft, setDraft] = useState<Draft>(() => draftFrom(settings));
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -227,7 +227,7 @@ export function SettingsStudio({ settings, onSaved }: Props) {
 
     setState("saving");
     try {
-      await sendCommand("settings", payload);
+      await sendCommand(device, "settings", payload);
       setTouched(false);
       setState("saved");
       onSaved();

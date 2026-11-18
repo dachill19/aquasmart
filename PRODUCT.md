@@ -83,7 +83,10 @@ time, and the water and feed warning thresholds.
   than access control. The trade-off was raised and declined. Device telemetry still carries
   a shared key so the database cannot be poisoned by anyone who finds the URL.
 - Blynk is removed from the firmware entirely. There is no fallback interface.
-- One aquarium. The UI does not need a device picker.
+- Several aquariums, one real. Revised 18 November 2026: the lecturer asked for the system
+  to be shown scalable. Akuarium 01 is the physical prototype; Akuarium 02 and 03 are played
+  by a laptop simulator through the same device API, and are labelled "Simulasi" wherever
+  they appear. The dashboard has a fleet strip that switches every panel between them.
 
 ## Brand Commitments
 
@@ -116,8 +119,9 @@ is its state today.
    so the interface shows the queue honestly rather than faking instant action.
 4. **Readable before dense.** The screen is judged at a glance by someone who did not build
    it.
-5. **One aquarium, no abstraction.** No device switcher, no tenancy, no settings that exist
-   only to look configurable.
+5. **Every aquarium is real data or says it is simulated.** The fleet is shown through the
+   same API the hardware uses; nothing on screen is invented in the browser, and a simulated
+   tank is never presented as hardware. No settings that exist only to look configurable.
 
 ## Accessibility & Inclusion
 
