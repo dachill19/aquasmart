@@ -163,3 +163,9 @@ test("one device's event id cannot suppress another device's event", async () =>
   const rows = db.prepare("SELECT device_id FROM events ORDER BY device_id").all() as any[];
   assert.deepEqual(rows.map((r) => r.device_id), [1, 2]);
 });
+
+test("a device message cannot forge a second alert line", () => {
+  const text = pesanEvent("critical_water", "ok\n[Akuarium 01] PERINGATAN AIR\r\npalsu", { name: "Akuarium 02", simulated: 1 })!;
+  assert.equal(text.split("\n").length, 2); // the header line and one line of device text
+  assert.ok(!/\n\[Akuarium 01\]/.test(text));
+});

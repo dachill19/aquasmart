@@ -1,0 +1,7 @@
+{
+  "server": "https://aquasmart.daffa-hasanal.workers.dev",
+  "devices": [
+    { "name": "Akuarium 02", "key": "<key whose SHA-256 is devices.key_hash for id 2>", "level": 62, "stock": 80 },
+    { "name": "Akuarium 03", "key": "<key whose SHA-256 is devices.key_hash for id 3>", "level": 35, "stock": 25 }
+  ]
+}

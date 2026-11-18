@@ -14,8 +14,8 @@ CREATE TABLE devices (
 );
 INSERT INTO devices (id, name, simulated, key_hash) VALUES
   (1, 'Akuarium 01', 0, NULL),
-  (2, 'Akuarium 02', 1, 'placeholder-2'),
-  (3, 'Akuarium 03', 1, 'placeholder-3');
+  (2, 'Akuarium 02', 1, '849bc9f5a21414bc1f84247d95ab70c4c069b1efaea55f43e9cff6e34581210e'),
+  (3, 'Akuarium 03', 1, 'c645370e7edb5a3c6f94e3b56e5f741e916cdea9ffa919eb279e05634b02afa1');
 
 ALTER TABLE readings ADD COLUMN device_id INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE commands ADD COLUMN device_id INTEGER NOT NULL DEFAULT 1;

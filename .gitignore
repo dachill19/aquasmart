@@ -11,3 +11,6 @@ laporan/.preview
 laporan/laporan.html
 laporan/laporan-docs.html
 laporan/halaman.json
+
+# Plain keys of the simulated aquariums; only their hashes are in the database.
+simulator/devices.json
