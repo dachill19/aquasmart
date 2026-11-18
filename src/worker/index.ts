@@ -217,9 +217,14 @@ app.post("/api/telemetry", async (c) => {
   // lost on the way back, the device believes it failed and sends the same
   // queue again. INSERT OR IGNORE against the unique ext_id turns that into
   // exactly-once. Without it one feed warning was stored sixty times.
-  if (Array.isArray(body.events)) {
+  if (Array.isArray(body.events) && body.events.length) {
     const events = (body.events as Array<{ id?: string; kind?: string; message?: string }>).slice(0, 5);
     const baru: string[] = [];
+    // Every alert names its aquarium, and simulated ones say so.
+    const label = (await db
+      .prepare("SELECT name, simulated FROM devices WHERE id = ?")
+      .bind(deviceId)
+      .first<{ name: string; simulated: number }>())!;
 
     for (const e of events) {
       const kind = String(e.kind ?? "info").slice(0, 32);
@@ -233,7 +238,7 @@ app.post("/api/telemetry", async (c) => {
       // inserts nothing thanks to the unique ext_id, and must stay silent too,
       // otherwise one warning would be pushed to the owner on every retry.
       if (res.meta.changes > 0) {
-        const teks = pesanEvent(kind, message);
+        const teks = pesanEvent(kind, message, label);
         if (teks) baru.push(teks);
       }
     }

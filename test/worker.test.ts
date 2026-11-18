@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import app from "../src/worker/index.ts";
+import { pesanEvent } from "../src/worker/telegram.ts";
 
 const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
@@ -146,4 +147,19 @@ test("latest, history and devices are scoped and summarised per device", async (
   assert.deepEqual((await call("/api/history?device=2")).json.readings.map((r: any) => r.level_air), [40]);
   const { devices } = (await call("/api/devices")).json;
   assert.deepEqual(devices.map((d: any) => [d.id, d.simulated, d.level_air]), [[1, 0, 70], [2, 1, 40], [3, 1, null]]);
+});
+
+test("alerts name the aquarium and flag simulated ones", () => {
+  assert.match(pesanEvent("critical_water", "x", { name: "Akuarium 02", simulated: 1 })!, /^\[Akuarium 02 \(simulasi\)\] /);
+  assert.match(pesanEvent("critical_food", "x", { name: "Akuarium 01", simulated: 0 })!, /^\[Akuarium 01\] PERINGATAN PAKAN/);
+  assert.equal(pesanEvent("info", "x", { name: "Akuarium 01", simulated: 0 }), null);
+});
+
+test("one device's event id cannot suppress another device's event", async () => {
+  const { db, telemetry } = setup();
+  const ev = { id: "abc-1", kind: "critical_water", message: "x" };
+  await telemetry("sim2", { events: [ev] });
+  await telemetry("k", { events: [ev] });
+  const rows = db.prepare("SELECT device_id FROM events ORDER BY device_id").all() as any[];
+  assert.deepEqual(rows.map((r) => r.device_id), [1, 2]);
 });

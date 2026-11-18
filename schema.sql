@@ -64,14 +64,14 @@ CREATE TABLE events (
   -- The device's own id for this event, "<random boot marker>-<counter>".
   -- Telemetry delivery is at-least-once, so a lost response makes the device
   -- resend its queue; the unique index below turns the repeat into a no-op.
-  -- The random marker keeps ids from different devices apart. Rows written
-  -- before this column existed hold NULL, and SQLite allows any number of
-  -- NULLs in a unique index.
+  -- Unique per device, so one device can never suppress another's event by
+  -- sending the same id. Rows written before this column existed hold NULL,
+  -- and SQLite allows any number of NULLs in a unique index.
   ext_id    TEXT,
   device_id INTEGER NOT NULL DEFAULT 1
 );
 CREATE INDEX idx_events_device_ts ON events (device_id, ts DESC);
-CREATE UNIQUE INDEX idx_events_ext ON events (ext_id);
+CREATE UNIQUE INDEX idx_events_device_ext ON events (device_id, ext_id);
 
 -- Settings live here instead of in device RAM, so a reboot no longer loses them.
 -- Each aquarium has its own copy, including its own sensor calibration.

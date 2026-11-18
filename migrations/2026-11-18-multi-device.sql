@@ -26,6 +26,9 @@ DROP INDEX IF EXISTS idx_commands_pending;
 CREATE INDEX idx_commands_device_pending ON commands (device_id, acked_at, id);
 DROP INDEX IF EXISTS idx_events_ts;
 CREATE INDEX idx_events_device_ts ON events (device_id, ts DESC);
+-- Event ids become unique per device, so one device cannot suppress another's.
+DROP INDEX IF EXISTS idx_events_ext;
+CREATE UNIQUE INDEX idx_events_device_ext ON events (device_id, ext_id);
 
 -- settings needs a composite primary key, which SQLite cannot add in place.
 CREATE TABLE settings_new (

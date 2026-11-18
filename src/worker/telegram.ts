@@ -37,10 +37,10 @@ const OFFLINE_AFTER_MS = 60_000;
 const BANTUAN = [
   "AQUASMART - kendali akuarium",
   "",
-  "/status - kondisi air, pakan, dan pompa saat ini",
-  "/pakan - beri pakan sekarang",
-  "/pompa - nyalakan atau matikan pompa",
-  "/buka - buka kunci pompa",
+  "/status - kondisi semua akuarium saat ini",
+  "/pakan - beri pakan Akuarium 01 sekarang",
+  "/pompa - nyalakan atau matikan pompa Akuarium 01",
+  "/buka - buka kunci pompa Akuarium 01",
   "/help - tampilkan pesan ini",
 ].join("\n");
 
@@ -85,44 +85,69 @@ function usia(ms: number): string {
  * that are routine enough that pushing them would train the owner to ignore
  * the bot.
  */
-export function pesanEvent(kind: string, message: string): string | null {
-  if (kind === "critical_water") return `PERINGATAN AIR\n${message}`;
-  if (kind === "critical_food") return `PERINGATAN PAKAN\n${message}`;
-  if (kind === "feed_done") return `Pakan diberikan.\n${message}`;
+export type DeviceLabel = { name: string; simulated: number };
+
+/** "[Akuarium 02 (simulasi)]", so a demo device can never read as a real alarm. */
+function labelAlat(device: DeviceLabel): string {
+  return `[${device.name}${device.simulated ? " (simulasi)" : ""}]`;
+}
+
+export function pesanEvent(kind: string, message: string, device: DeviceLabel): string | null {
+  const label = labelAlat(device);
+  if (kind === "critical_water") return `${label} PERINGATAN AIR\n${message}`;
+  if (kind === "critical_food") return `${label} PERINGATAN PAKAN\n${message}`;
+  if (kind === "feed_done") return `${label} Pakan diberikan.\n${message}`;
   return null;
 }
 
+/** One block per aquarium, so the owner sees the whole fleet in one message. */
 async function laporanStatus(db: D1Database): Promise<string> {
-  const r = await db
-    .prepare(
-      `SELECT ts, level_air, raw_water, stok_pakan, jarak_pakan, pompa, terkunci,
-              status_air, status_pakan
-         FROM readings ORDER BY ts DESC LIMIT 1`
-    )
-    .first<StatusRow>();
+  const { results: alat } = await db
+    .prepare("SELECT id, name, simulated FROM devices ORDER BY id")
+    .all<{ id: number } & DeviceLabel>();
 
-  if (!r) return "Alat belum pernah melapor, jadi belum ada data untuk ditampilkan.";
+  const blok: string[] = [];
+  for (const d of alat) {
+    const r = await db
+      .prepare(
+        `SELECT ts, level_air, raw_water, stok_pakan, jarak_pakan, pompa, terkunci,
+                status_air, status_pakan
+           FROM readings WHERE device_id = ? ORDER BY ts DESC LIMIT 1`
+      )
+      .bind(d.id)
+      .first<StatusRow>();
 
-  const umur = Date.now() - r.ts;
-  const baris = [
-    umur > OFFLINE_AFTER_MS
-      ? `ALAT TIDAK TERHUBUNG. Angka di bawah pembacaan terakhir, bukan kondisi sekarang.`
-      : `Alat terhubung.`,
-    "",
-    r.level_air === null
-      ? "Air: tidak terbaca"
-      : `Air: ${r.level_air}% (${r.status_air ?? "-"}), ADC ${r.raw_water ?? "-"}`,
-    r.stok_pakan === null
-      ? "Pakan: tidak terbaca"
-      : `Pakan: ${r.stok_pakan}% (${r.status_pakan ?? "-"}), jarak ${
-          r.jarak_pakan === null ? "-" : Math.round(r.jarak_pakan * 10)
-        } mm`,
-    `Pompa: ${r.terkunci ? "terkunci" : r.pompa ? "menyala" : "mati"}`,
-    "",
-    `Pembacaan: ${jamWib(r.ts)} (${usia(umur)})`,
-  ];
-  return baris.join("\n");
+    if (!r) {
+      blok.push(`${labelAlat(d)}\nBelum pernah melapor.`);
+      continue;
+    }
+
+    const umur = Date.now() - r.ts;
+    blok.push(
+      [
+        `${labelAlat(d)} ${umur > OFFLINE_AFTER_MS ? "TIDAK TERHUBUNG (pembacaan terakhir)" : "terhubung"}`,
+        r.level_air === null
+          ? "Air: tidak terbaca"
+          : `Air: ${r.level_air}% (${r.status_air ?? "-"}), ADC ${r.raw_water ?? "-"}`,
+        r.stok_pakan === null
+          ? "Pakan: tidak terbaca"
+          : `Pakan: ${r.stok_pakan}% (${r.status_pakan ?? "-"}), jarak ${
+              r.jarak_pakan === null ? "-" : Math.round(r.jarak_pakan * 10)
+            } mm`,
+        `Pompa: ${r.terkunci ? "terkunci" : r.pompa ? "menyala" : "mati"}`,
+        `Pembacaan: ${jamWib(r.ts)} (${usia(umur)})`,
+      ].join("\n")
+    );
+  }
+  return blok.length ? blok.join("\n\n") : "Belum ada akuarium terdaftar.";
 }
+
+/**
+ * The bot controls the real aquarium only. The simulated ones exist to be
+ * shown on the dashboard, and a phone command reaching them by accident would
+ * look like the real device ignoring it.
+ */
+const ALAT_BOT = 1;
 
 /** Queues a command on the same table the dashboard writes to. */
 async function antreanPerintah(
@@ -131,14 +156,17 @@ async function antreanPerintah(
   payload: Record<string, unknown>
 ): Promise<number> {
   const res = await db
-    .prepare("INSERT INTO commands (ts, type, payload) VALUES (?,?,?)")
-    .bind(Date.now(), type, JSON.stringify(payload))
+    .prepare("INSERT INTO commands (device_id, ts, type, payload) VALUES (?,?,?,?)")
+    .bind(ALAT_BOT, Date.now(), type, JSON.stringify(payload))
     .run();
   return Number(res.meta.last_row_id);
 }
 
 async function pompaSedangNyala(db: D1Database): Promise<boolean> {
-  const r = await db.prepare("SELECT pompa FROM readings ORDER BY ts DESC LIMIT 1").first<{ pompa: number }>();
+  const r = await db
+    .prepare("SELECT pompa FROM readings WHERE device_id = ? ORDER BY ts DESC LIMIT 1")
+    .bind(ALAT_BOT)
+    .first<{ pompa: number }>();
   return Boolean(r?.pompa);
 }
 
