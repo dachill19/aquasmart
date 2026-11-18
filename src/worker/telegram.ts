@@ -92,8 +92,18 @@ function labelAlat(device: DeviceLabel): string {
   return `[${device.name}${device.simulated ? " (simulasi)" : ""}]`;
 }
 
-export function pesanEvent(kind: string, message: string, device: DeviceLabel): string | null {
+/**
+ * Device-supplied text on one line. A simulated device's key lives on a laptop,
+ * so its text is lower-trust: a line break in it could fake a second alert that
+ * appears to come from the real aquarium.
+ */
+function satuBaris(text: string): string {
+  return text.replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, " ").trim();
+}
+
+export function pesanEvent(kind: string, rawMessage: string, device: DeviceLabel): string | null {
   const label = labelAlat(device);
+  const message = satuBaris(rawMessage);
   if (kind === "critical_water") return `${label} PERINGATAN AIR\n${message}`;
   if (kind === "critical_food") return `${label} PERINGATAN PAKAN\n${message}`;
   if (kind === "feed_done") return `${label} Pakan diberikan.\n${message}`;
@@ -128,10 +138,10 @@ async function laporanStatus(db: D1Database): Promise<string> {
         `${labelAlat(d)} ${umur > OFFLINE_AFTER_MS ? "TIDAK TERHUBUNG (pembacaan terakhir)" : "terhubung"}`,
         r.level_air === null
           ? "Air: tidak terbaca"
-          : `Air: ${r.level_air}% (${r.status_air ?? "-"}), ADC ${r.raw_water ?? "-"}`,
+          : `Air: ${r.level_air}% (${satuBaris(r.status_air ?? "-")}), ADC ${r.raw_water ?? "-"}`,
         r.stok_pakan === null
           ? "Pakan: tidak terbaca"
-          : `Pakan: ${r.stok_pakan}% (${r.status_pakan ?? "-"}), jarak ${
+          : `Pakan: ${r.stok_pakan}% (${satuBaris(r.status_pakan ?? "-")}), jarak ${
               r.jarak_pakan === null ? "-" : Math.round(r.jarak_pakan * 10)
             } mm`,
         `Pompa: ${r.terkunci ? "terkunci" : r.pompa ? "menyala" : "mati"}`,
