@@ -14,3 +14,6 @@ laporan/halaman.json
 
 # Plain keys of the simulated aquariums; only their hashes are in the database.
 simulator/devices.json
+
+# Database backups taken before production migrations.
+backups/
