@@ -58,9 +58,19 @@
   --glass-edge: rgb(10 30 55 / 0.28);
   --water-hi: #3fb2ff;
   --water-lo: #0b5fc0;
+
+  /* One identity colour per aquarium on the Analitik charts. Validated as a set
+     (dataviz validate_palette, all pairs, both modes); green, amber and red stay
+     reserved for status, so these never read as a verdict. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
 }
 
 .dark {
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
   --bg: #070b11;
   --surface: #0c121b;
   --raised: #111926;

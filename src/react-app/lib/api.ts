@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 // The worker owns these shapes; importing them keeps both sides of the API in step.
-import type { CommandRow, DeviceSummary, EventRow, Reading, Settings } from "../../worker/index";
-export type { CommandRow, DeviceSummary, EventRow, Reading, Settings };
+import type { Analytics, CommandRow, DeviceSummary, EventRow, Reading, Settings } from "../../worker/index";
+export type { Analytics, CommandRow, DeviceSummary, EventRow, Reading, Settings };
+export type { DeviceAnalytics } from "../../worker/index";
+
+export type AnalyticsRange = "1h" | "24h" | "7d";
 
 export type Latest = {
   device: number;
@@ -134,4 +137,38 @@ export function useDevices(intervalMs = 4000): { devices: DeviceSummary[]; loade
   }, [intervalMs]);
 
   return { devices, loaded, error };
+}
+
+/**
+ * Fleet analytics for one range, refreshed every 5 s so the Analitik page moves
+ * during the demo. Changing range clears the old figures at once.
+ */
+export function useAnalytics(range: AnalyticsRange, intervalMs = 5000): { data: Analytics | null; error: string | null } {
+  const [data, setData] = useState<Analytics | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setData(null);
+    setError(null);
+    const load = async () => {
+      try {
+        const body = await getJSON<Analytics>(`/api/analytics?range=${range}`);
+        if (alive) {
+          setData(body);
+          setError(null);
+        }
+      } catch (err) {
+        if (alive) setError(err instanceof Error ? err.message : String(err));
+      }
+    };
+    void load();
+    const id = setInterval(() => void load(), intervalMs);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [range, intervalMs]);
+
+  return { data, error };
 }

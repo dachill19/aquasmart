@@ -5,14 +5,15 @@ import { ControlDeck } from "./components/ControlDeck";
 import { FleetStrip } from "./components/FleetStrip";
 import { SettingsStudio } from "./components/SettingsStudio";
 import { StatusHero } from "./components/StatusHero";
-import { TopBar } from "./components/TopBar";
+import { TopBar, type Page } from "./components/TopBar";
+import { AnalyticsPage } from "./components/AnalyticsPage";
 import { TrendChart } from "./components/TrendChart";
 import { VesselCard } from "./components/VesselCard";
 import { Sparkline } from "./components/Sparkline";
 import { Vitals } from "./components/Vitals";
 import { FeedHopper } from "./components/vessels/FeedHopper";
 import { WaterTank } from "./components/vessels/WaterTank";
-import { OFFLINE_AFTER_MS, useDevices, useTelemetry } from "./lib/api";
+import { OFFLINE_AFTER_MS, useDevices, useTelemetry, type AnalyticsRange } from "./lib/api";
 import { COMMAND_LABEL, formatClock, formatNumber } from "./lib/format";
 
 type Theme = "light" | "dark";
@@ -35,11 +36,30 @@ function initialDevice(): number {
   return Number.isInteger(n) && n > 0 ? n : 1;
 }
 
+const pageFromPath = (): Page => (window.location.pathname.replace(/\/+$/, "") === "/analitik" ? "analitik" : "akuarium");
+
 export default function App() {
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [now, setNow] = useState(() => Date.now());
   const [device, setDevice] = useState(initialDevice);
+  const [page, setPage] = useState<Page>(pageFromPath);
+  const [range, setRange] = useState<AnalyticsRange>("1h");
   const { devices, loaded: devicesLoaded } = useDevices();
+
+  function navigate(next: Page) {
+    if (next === page) return;
+    setPage(next);
+    const query = device === 1 ? "" : `?${PARAM}=${device}`;
+    window.history.pushState(null, "", next === "analitik" ? "/analitik" : `/${query}`);
+    window.scrollTo({ top: 0 });
+  }
+
+  // The browser's back and forward buttons move between the two pages.
+  useEffect(() => {
+    const onPop = () => setPage(pageFromPath());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   const { latest, history, error, loading, refresh } = useTelemetry(device);
 
   function selectDevice(id: number) {
@@ -107,14 +127,20 @@ export default function App() {
     history.length >= 2 ? `${Math.max(1, Math.round((history[history.length - 1].ts - history[0].ts) / 60000))} menit terakhir` : "";
   const distanceMm = reading?.jarak_pakan != null ? reading.jarak_pakan * 10 : null;
 
+  const fleetOnline = devices.filter((d) => d.ts !== null && now - d.ts <= OFFLINE_AFTER_MS).length;
+  const fleetLastSeen = devices.reduce<number | null>((m, d) => (d.ts !== null && (m === null || d.ts > m) ? d.ts : m), null);
+
   return (
     <div className="min-h-screen pb-24">
       <TopBar
-        lastSeen={reading?.ts ?? null}
+        lastSeen={page === "analitik" ? fleetLastSeen : (reading?.ts ?? null)}
         now={now}
-        offline={offline}
+        offline={page === "analitik" ? fleetOnline === 0 : offline}
         theme={theme}
         onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
+        page={page}
+        onNavigate={navigate}
+        presence={page === "analitik" && devices.length ? `${fleetOnline}/${devices.length} akuarium online` : undefined}
       />
 
       <p aria-live="polite" className="sr-only">
@@ -122,6 +148,10 @@ export default function App() {
       </p>
 
       <main className="mx-auto max-w-[2200px] px-4 sm:px-6 xl:px-8">
+        {page === "analitik" ? (
+          <AnalyticsPage range={range} onRange={setRange} now={now} />
+        ) : (
+          <>
         <FleetStrip devices={devices} selected={device} now={now} onSelect={selectDevice} />
 
         <StatusHero
@@ -245,6 +275,8 @@ export default function App() {
           {/* Keyed by aquarium: unsaved edits are dropped on a switch, never saved to the newly selected tank. */}
           <SettingsStudio key={device} device={device} settings={settings} onSaved={refresh} />
         </div>
+          </>
+        )}
       </main>
 
       <footer className="mx-auto mt-10 flex max-w-[2200px] flex-wrap items-center justify-between gap-4 border-t border-line px-4 pt-5 text-xs text-muted sm:px-6 xl:px-8">
