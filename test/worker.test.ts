@@ -169,3 +169,66 @@ test("a device message cannot forge a second alert line", () => {
   assert.equal(text.split("\n").length, 2); // the header line and one line of device text
   assert.ok(!/\n\[Akuarium 01\]/.test(text));
 });
+
+test("analytics rejects an unknown range and defaults to one hour", async () => {
+  const { call } = setup();
+  assert.equal((await call("/api/analytics?range=1y")).status, 400);
+  assert.equal((await call("/api/analytics?range=toString")).status, 400);
+  const { status, json } = await call("/api/analytics");
+  assert.equal(status, 200);
+  assert.equal(json.range, "1h");
+  assert.deepEqual(json.devices.map((d: any) => d.id), [1, 2, 3]);
+});
+
+test("analytics aggregates each device over the window only", async () => {
+  const { db, call } = setup();
+  const now = Date.now();
+  const read = db.prepare("INSERT INTO readings (device_id, ts, level_air, stok_pakan, pompa, rssi) VALUES (?,?,?,?,?,?)");
+  read.run(1, now - 2 * DAY, 5, 5, 1, -90); // outside the window, ignored
+  [[40, 0], [30, 1], [35, 1], [45, 0], [50, 1]].forEach(([level, pompa], i) =>
+    read.run(1, now - 50 * MIN + i * MIN, level, 60, pompa, -60)
+  );
+  read.run(2, now - 10 * MIN, 80, 90, 0, -50);
+  const ev = db.prepare("INSERT INTO events (device_id, ts, kind, message) VALUES (?,?,?,'x')");
+  ev.run(1, now - 5 * MIN, "feed_done");
+  ev.run(1, now - 4 * MIN, "feed_done");
+  ev.run(2, now - 3 * MIN, "critical_water");
+  ev.run(1, now - 2 * DAY, "critical_water"); // outside
+  const cmd = db.prepare("INSERT INTO commands (device_id, ts, type, payload, acked_at) VALUES (?,?,?,?,?)");
+  cmd.run(1, now - 20 * MIN, "feed", "{}", now - 20 * MIN + 3000);
+  cmd.run(2, now - 30 * MIN, "feed", "{}", null); // never collected: expired
+
+  const { json } = await call("/api/analytics?range=1h");
+  const [d1, d2, d3] = json.devices;
+  assert.equal(d1.readings, 5);
+  assert.equal(d1.avg_level, 40);
+  assert.equal(d1.min_level, 30);
+  assert.equal(d1.pump_starts, 2);
+  assert.equal(d1.feeds, 2);
+  assert.deepEqual(d1.alerts, { critical_water: 0, critical_food: 0 });
+  assert.deepEqual(d1.commands, { total: 1, acked: 1, expired: 0, pending: 0 });
+  assert.equal(d1.avg_response_ms, 3000);
+  assert.equal(d1.avg_rssi, -60);
+  assert.ok(d1.availability > 0 && d1.availability <= 1);
+  assert.equal(d2.readings, 1);
+  assert.deepEqual(d2.alerts, { critical_water: 1, critical_food: 0 });
+  assert.deepEqual(d2.commands, { total: 1, acked: 0, expired: 1, pending: 0 });
+  assert.equal(d2.avg_response_ms, null);
+  assert.equal(d3.readings, 0);
+  assert.equal(d3.availability, 0);
+  assert.equal(d3.avg_level, null);
+});
+
+test("analytics series is bucketed per device", async () => {
+  const { db, call } = setup();
+  const now = Date.now();
+  const read = db.prepare("INSERT INTO readings (device_id, ts, level_air, stok_pakan, pompa) VALUES (?,?,?,?,0)");
+  read.run(1, now - 30 * MIN, 40, 60);
+  read.run(2, now - 30 * MIN, 70, 20);
+  const { json } = await call("/api/analytics?range=1h");
+  const byDevice = Object.groupBy(json.series, (p: any) => p.device_id);
+  assert.equal(byDevice[1].length, 1);
+  assert.equal(byDevice[1][0].level_air, 40);
+  assert.equal(byDevice[2][0].stok_pakan, 20);
+  assert.equal(json.bucket_ms, 60_000);
+});

@@ -8,6 +8,8 @@
  */
 import { Hono } from "hono";
 import { kirimSemua, pesanEvent, tanganiWebhook } from "./telegram.ts";
+import { fleetAnalytics, RANGES, type Range } from "./analytics.ts";
+export type { Analytics, DeviceAnalytics, SeriesPoint } from "./analytics.ts";
 
 type Bindings = {
   DB: D1Database;
@@ -437,6 +439,14 @@ app.get("/api/devices", async (c) => {
       ORDER BY d.id`
   ).all<DeviceSummary>();
   return c.json({ devices: results, server_time: Date.now() });
+});
+
+/** The whole fleet over one window, for the Analitik page. */
+app.get("/api/analytics", async (c) => {
+  const range = (c.req.query("range") ?? "1h") as Range;
+  // hasOwn, not `in`: "toString" is "in" every object and would yield a NaN window.
+  if (!Object.hasOwn(RANGES, range)) return c.json({ error: "rentang harus 1h, 24h atau 7d" }, 400);
+  return c.json(await fleetAnalytics(c.env.DB, range, Date.now(), COMMAND_TTL_MS));
 });
 
 app.onError((err, c) => c.json({ error: err.message }, 500));
