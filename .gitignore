@@ -2,15 +2,10 @@ node_modules
 dist
 .wrangler
 .dev.vars
-.impeccable/review
-secrets.h
 *.tsbuildinfo
-laporan/.preview
 
-# laporan: artefak hasil build (jalankan node laporan/build_pdf.cjs)
-laporan/laporan.html
-laporan/laporan-docs.html
-laporan/halaman.json
+# Wi-Fi credentials and device key for the firmware; see secrets.example.h.
+firmware/AQUASMART/secrets.h
 
 # Plain keys of the simulated aquariums; only their hashes are in the database.
 simulator/devices.json
