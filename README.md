@@ -10,6 +10,8 @@ lewat bot Telegram.
 
 Dashboard: https://aquasmart.daffa-hasanal.workers.dev
 
+![Dashboard AQUASMART](docs/dashboard.png)
+
 ## Arsitektur
 
 ```
@@ -34,7 +36,7 @@ Dashboard React <--------- /api/* -------------- +--> Bot Telegram
 | `simulator/` | Simulator akuarium tambahan untuk uji skalabilitas |
 | `test/` | Pengujian otomatis server dan simulator |
 | `foto/` | Foto rakitan akhir prototipe |
-| `docs/` | Diagram alur kerja perangkat |
+| `docs/` | Diagram alur kerja dan tangkapan layar dashboard |
 | `laporan/referensi/` | Jurnal rujukan laporan |
 
 ## Menjalankan
