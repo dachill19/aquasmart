@@ -1,6 +1,6 @@
 /*
   AQUASMART - akuarium pintar berbasis IoT
-  NodeMCU ESP8266 + HC-SR04 + sensor level air + RTC DS1302 + servo SG90 + relay pompa
+  NodeMCU ESP8266 + HC-SR04 + sensor level air + RTC DS1302 + servo analog Emax ES08A + relay pompa
 
   Blynk sudah dilepas sepenuhnya. Alat sekarang berbicara ke server sendiri:
   satu HTTPS POST tiap siklus mengirim telemetri dan langsung menerima perintah
@@ -32,7 +32,7 @@ const int WATER_ANALOG = A0;  // ADC0 (A0) -> Sinyal Analog Sensor Air
 
 const int TRIG_PIN     = 14;  // GPIO 14 (D5) -> TRIG HC-SR04
 const int ECHO_PIN     = 12;  // GPIO 12 (D6) -> ECHO HC-SR04
-const int SERVO_PIN    = 13;  // GPIO 13 (D7) -> Signal Servo SG90
+const int SERVO_PIN    = 13;  // GPIO 13 (D7) -> Signal Servo ES08A
 
 const int RTC_DAT_PIN  = 0;   // GPIO 0  (D3) -> DAT
 const int RTC_CLK_PIN  = 4;   // GPIO 4  (D2) -> CLK
