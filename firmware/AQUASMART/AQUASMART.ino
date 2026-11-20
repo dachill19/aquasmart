@@ -592,7 +592,7 @@ void jalankanPerintah(JsonObjectConst cmd) {
     bool on = cmd["payload"]["on"] | false;
     if (on && levelAir >= BATAS_LUAP) {
       // Perintah tetap disahkan di bawah supaya server tidak menawarkannya
-      // lagi; penolakannya muncul di tabel Catatan agar terlihat operator.
+      // lagi; penolakannya muncul di daftar Aktivitas agar terlihat operator.
       catatEvent("critical_water",
                  "Perintah pompa ditolak: air sudah " + String(levelAir) + "%.");
       Serial.println("[POMPA] perintah ditolak, air sudah penuh.");
