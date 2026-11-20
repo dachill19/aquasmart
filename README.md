@@ -29,6 +29,7 @@ Dashboard React <--------- /api/* -------------- +--> Bot Telegram
 | `migrations/` | Migrasi database produksi dari satu ke banyak akuarium |
 | `simulator/` | Simulator akuarium tambahan untuk uji skalabilitas |
 | `test/` | Pengujian otomatis server dan simulator |
+| `foto/` | Foto rakitan akhir prototipe |
 | `laporan/referensi/` | Jurnal rujukan laporan |
 
 ## Menjalankan
