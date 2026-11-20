@@ -18,6 +18,10 @@ ESP8266 --HTTPS POST /api/telemetry--> Cloudflare Worker (Hono) --> D1 (SQLite)
 Dashboard React <--------- /api/* -------------- +--> Bot Telegram
 ```
 
+### Alur kerja perangkat
+
+![Alur kerja perangkat AQUASMART](docs/alur-kerja.png)
+
 ## Struktur folder
 
 | Folder / berkas | Isi |
@@ -30,6 +34,7 @@ Dashboard React <--------- /api/* -------------- +--> Bot Telegram
 | `simulator/` | Simulator akuarium tambahan untuk uji skalabilitas |
 | `test/` | Pengujian otomatis server dan simulator |
 | `foto/` | Foto rakitan akhir prototipe |
+| `docs/` | Diagram alur kerja perangkat |
 | `laporan/referensi/` | Jurnal rujukan laporan |
 
 ## Menjalankan
